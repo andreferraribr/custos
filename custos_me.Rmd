@@ -1,0 +1,169 @@
+```{r setup, include=FALSE}
+options(scipen=999)
+options(digits=2)
+# options (LC_NUMERIC="pt_BR.UTF-8")
+```
+
+
+
+
+```{r libraries,  message=FALSE}
+library(flexdashboard)
+library(readxl)
+library(ggplot2)
+library(stringr)
+library(plotly)
+library(DT)
+library(shiny)
+# library(shinyWidgets)
+library(lubridate)
+library(tidyverse)
+library(janitor)
+library(googledrive)
+library(gargle)
+```
+
+```{r}
+# profvis({  
+# profvis::profvis(expr = rmarkdown::run("flexdashboard.Rmd"), prof_output = "flexdashboard.html")
+# https://community.rstudio.com/t/faster-flexdashboard-loading/28681/2
+```
+
+
+
+```{r negar %in%}
+# https://www.r-bloggers.com/the-notin-operator/
+'%!in%' <- Negate('%in%')
+```
+
+```{r função "dados" importar e renomear variaveis}
+# funcao para importar dados e renomear variaveis
+dados = function(tg, depara){
+  # carregar planilha com dados do Tesouro Gerencial (tg)
+  df <- read_xlsx(tg)
+  # carregar planilha com o de_para dos nomes dos atributos do Tesouro Gerencial para nomes mais amigáveis para as variáveis. Por exemplo, de(Unidade Orçamentária Código) para(uo_cod)
+  tg2r <- read_xlsx(depara)
+  # renomear as colunas da df fazendo o de_para
+  colnames(df)<-tg2r$r_name
+  return(df)
+}
+```
+
+```{r função "tabela" formatar numeros incluir totalizador}
+# comentar funcao e parametro para totalizar colunas e linhas
+# ajustar formatacao de acordo com a opcao de totalizar
+# criar forma melhor para selecionar apenas colunas numericas para formatacao de valor
+# coluna = "Total" para totalizar columnwise
+tabela = function (df,coluna = NULL) {
+      datatable((df)%>%
+  # "row" para o total aparecer na linha, ou seja, totalizar os valores de uma coluna
+  adorn_totals("row") ,
+      filter = 'top',          
+      extensions = 'Buttons',
+      options = list( 
+                  # order = list (df[(length(df))], 'desc'),
+                  dom = "Blfrtip",
+                  buttons = 
+                    list("copy", list(
+                      extend = "collection",
+                      buttons = c("csv", "excel", "pdf"),
+                      text = "Download" ) ),
+                  lengthMenu = list( c(-1, 5, 10,20),
+                                     c( "tudo",5, 10, 20)),
+                  pageLength = -1 )
+      )%>%
+  formatRound(
+  # formatar apenas as colunas numericas.
+  # sapply para identificar as colunas numericas e combinar com o parametro COLUNA
+    # ((ncol(df %>% select_if(is.character))+1):(ncol(df )+1)),
+    # http://datamining.togaware.com/survivor/Remove_Non_Numeric.html
+    (c(colnames(df[,sapply(df, is.numeric)]), coluna)),
+  digits = 2,
+  interval = 3,
+  mark = ",",
+  dec.mark = getOption("OutDec")
+)
+}
+# mesma lógica da função "tabela", mas com o objetivo de apresentar os números no formato R$
+tabela_reais = function (df,coluna = NULL) {
+      datatable((df)%>%
+  # "row" para o total aparecer na linha, ou seja, totalizar os valores de uma coluna
+  adorn_totals("row") ,
+      filter = 'top', 
+      rownames = FALSE,
+      extensions = 'Buttons',
+      options = list( 
+                  # order = list (df[(length(df))], 'desc'),
+                  dom = "Blfrtip",
+                  buttons = 
+                    list("copy", list(
+                      extend = "collection",
+                      buttons = c("csv", "excel", "pdf"),
+                      text = "Download" ) ),
+                  lengthMenu = list( c(-1, 5, 10,20),
+                                     c( "tudo",5, 10, 20)),
+                  pageLength = -1 )
+      )%>%
+  formatRound(
+  # formatar apenas as colunas numericas.
+  # sapply para identificar as colunas numericas e combinar com o parametro COLUNA
+    # ((ncol(df %>% select_if(is.character))+1):(ncol(df )+1)),
+    # http://datamining.togaware.com/survivor/Remove_Non_Numeric.html
+    (c(colnames(df[,sapply(df, is.numeric)]), coluna)),
+  digits = 2,
+  interval = 3,
+  mark = ".",
+  dec.mark = ","
+) 
+}
+```
+
+
+
+```{r função "reais" para embelezar numeros}
+# embelezar o número do value box
+reais <- function(numero){
+  paste0("R$ ",round(numero/1000,digits = 1), " K")
+}
+```
+
+
+
+```{r}
+custos <- read_excel("custos.xlsx")
+
+teste <- colnames(custos)
+
+write.csv(teste,"teste.csv")
+
+```
+
+```{r}
+nomes_atributos <-  read_excel("tg2r_custos_me.xlsx")
+colnames(custos) <- nomes_atributos$r_name
+```
+
+
+```{r}
+tabela(custos %>% group_by(ug_emitente, ug_emitente_id) %>% filter(str_detect(ug_emitente, "ADM"), ug_emitente_id %!in% c("170479","170312","170607"))  %>% summarise(custo = sum(custo)))
+
+tabela(custos %>% group_by(ug_emitente, ug_emitente_id) %>% filter(str_detect(ug_emitente, "ADM"), ug_emitente_id %!in% c("170479","170312","170607"))  %>% summarise(custo = sum(custo)))
+
+finalistico <- unique(custos %>% group_by(ug_emitente, ug_emitente_id) %>% filter(str_detect(ug_emitente, "ADM"), ug_emitente_id %!in% c("170479","170312","170607"))  %>% summarise(custo = sum(custo)))
+
+meio <- unique(custos %>% group_by(ug_icc, ug_icc_id, ugr,ugr_id, ndd_id, ndd, pi, pi_id) %>% filter(str_detect(ug_emitente, "ADM"), ug_emitente_id %!in% c("170479","170312","170607"), ug_icc_id %in% finalistico$ug_emitente_id)  %>% summarise(custo = sum(custo)))
+
+tabela(meio %>% group_by(ug_icc, ugr, pi, pi_id) %>% filter(ugr %in% ug_icc, endsWith(pi, "UNIDES")) %>% summarise(custo= sum(custo)))
+
+
+tabela(meio %>% group_by(ug_icc, ugr) %>% filter(ugr %in% ug_icc, endsWith(pi_id, "UNIDES")) %>% summarise(custo= sum(custo)))
+
+meio2 <- meio %>% group_by(ug_icc, ugr) %>% filter(ugr %in% ug_icc, endsWith(pi_id, "UNIDES")) %>% summarise(custo_apoio= sum(custo))
+
+
+relativo <- full_join(meio2,finalistico, by = c("ug_icc" ="ug_emitente")) %>% mutate(peso = custo_apoio/custo)
+
+tabela(relativo)
+```
+
+© 2021 GitHub, Inc.
