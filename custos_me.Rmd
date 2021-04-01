@@ -132,9 +132,26 @@ reais <- function(numero){
 ```{r}
 custos <- read_excel("custos.xlsx")
 
+pessoal <- read_excel("r_pessoal_ME_cargo.xlsx")
+descentralizadas <- c(202689,202690,202691,202692,202693,202694,202695,202696,202697,202698,202699,202700,202701,202702,202703,202704,202705,202706,202707,202708,202709,202710,202712,202713,202714,203631,203636,212614,212615,212616,212617,212618,212619,212620,212621,212622,212623,212624,212625,212629,212630,212631,212632,212633,212634,212637,212638,212639,212642,212643,212644,212645,212646,212647,212656,212657,212658,212659,212660,212661,212662,212665,212666,212667,212669,212671,212672,212673,212674,24313,278700,278701,278702,278703,278704,278705,278706,278707,278708,278713,278714,278716,278717,278718,278719,278720,278721,278722,278723,278724,280628,280629,280630,280632,280633,280634,280635,280636,280637,280638,280639,280640,280642,280643,280644,280646,280647,280648,280649,280650,280651,280652,280653,280654,280655,280656,280657,280658,280659,280660,280661,280662,280663,280667,280668,280669,280670,280671,280672,280676,280677,280678,280679,280680,280681,280682,280683,280684,280685,280686,280687,280688,280689,280690,280691,280692,280695,285288,304836,304860,304861,304904,304905,304906,304908,304910,304912,304913,304914,304915,304917,74073,87101)
+
+pessoal <- pessoal %>%  mutate (uf = str_sub(pessoal$UPAG, start = -2L, end=-1L))
+
 teste <- colnames(custos)
 
 write.csv(teste,"teste.csv")
+
+gra <- pessoal %>% filter (`UORG Código` %in% descentralizadas) %>% group_by(UPAG) %>% summarise(custo_pessoal = as.integer (sum(`Custo Pessoal - Ativo`)), pessoal =  as.integer(round(sum(`Força de Trabalho`)/12)))
+
+tabela(gra)
+
+
+gra_clientes <- pessoal %>% filter (`UORG Código` %!in% descentralizadas) %>% group_by(UPAG, uf) %>% summarise(custo_pessoal = as.integer (sum(`Custo Pessoal - Ativo`)), pessoal =  as.integer(round(sum(`Força de Trabalho`)/12)))
+
+tabela(gra_clientes)
+
+
+
 
 ```
 
@@ -164,6 +181,15 @@ meio2 <- meio %>% group_by(ug_icc, ugr) %>% filter(ugr %in% ug_icc, endsWith(pi_
 relativo <- full_join(meio2,finalistico, by = c("ug_icc" ="ug_emitente")) %>% mutate(peso = custo_apoio/custo)
 
 tabela(relativo)
+
+meio2 <- cbind((as.data.frame( str_split_fixed(meio2$ug_icc,"-",2))), meio2)
+
+meio2 <- meio2%>% mutate(uf= str_trim(uf$V2,side =c("both")))
+
+uf = as.data.frame( str_split_fixed(meio2$ug_icc,"-",2))
+
+uf <- uf %>% mutate(uf= str_trim(uf$V2,side =c("both")))
+
 ```
 
 © 2021 GitHub, Inc.
