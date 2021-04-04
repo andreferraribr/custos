@@ -288,7 +288,7 @@ meio2 <- meio2 %>% mutate(uf =
 
 custo_total <- full_join(meio2, gra) %>% mutate(custo_total = custo_apoio + custo_pessoal)
 tabela (custo_total)
-
+fd
 ```
 
 © 2021 GitHub, Inc.
