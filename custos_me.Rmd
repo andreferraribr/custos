@@ -139,6 +139,11 @@ pessoal <- pessoal %>%  mutate (uf = str_sub(pessoal$UPAG, start = -2L, end=-1L)
 
 tabela(pessoal %>% group_by(uf, UPAG, tipo_org) %>% summarise(custo_pessoal  =  (sum(`Custo Pessoal - Ativo`)/1000), pessoal =  format(round(sum(`Força de Trabalho`)/12), nsmall = 0)))
 
+
+
+
+tabela(pessoal %>% group_by(uf, UPAG, tipo_org) %>% filter(uf %!in% c("AC","RR","RO","AP", "DF"))%>% summarise(custo_pessoal  =  (sum(`Custo Pessoal - Ativo`)/1000))%>% pivot_wider( names_from = tipo_org, values_from = custo_pessoal) %>% mutate(percentual = apoio/cliente ))
+
 ```
 
 
@@ -183,9 +188,13 @@ custos <- custos %>%  mutate(uf =
 )
 
 
-custos <- custos %>% mutate(tipo_org =ifelse( ugr_id %in% ugr_descentralizadas$ugr_id, "apoio","clinte"))
+custos <- custos %>% mutate(tipo_org =ifelse( ugr_id %in% ugr_descentralizadas$ugr_id, "apoio","cliente"))
 
 tabela(custos %>% group_by(uf,ug_emitente, tipo_org) %>% filter (uf != "na")%>% summarise(custo_apoios  =  (sum(custo)/1000)))
+
+
+tabela(custos %>% group_by(uf,ug_emitente, tipo_org) %>% filter (uf != "na",uf %!in% c("AC","RR","RO","AP", "DF") )%>% summarise(custo_apoios  =  (sum(custo)/1000))%>% pivot_wider( names_from = tipo_org, values_from = custo_apoios)  %>% mutate(percentual = apoio/cliente ))
+
 
 ```
 
