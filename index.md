@@ -1,9 +1,6 @@
 ## Welcome to GitHub Pages
 
-You can use the [editor on GitHub](https://github.com/andreferraribr/custos/edit/gh-pages/index.md) to maintain and preview the content for your website in Markdown files.
-
-Whenever you commit to this repository, GitHub Pages will run [Jekyll](https://jekyllrb.com/) to rebuild the pages in your site, from the content in your Markdown files.
-
+Teste
 ### Markdown
 
 Markdown is a lightweight and easy-to-use syntax for styling your writing. It includes conventions for
@@ -28,10 +25,270 @@ Syntax highlighted code block
 
 For more details see [GitHub Flavored Markdown](https://guides.github.com/features/mastering-markdown/).
 
-### Jekyll Themes
+```{r setup, include=FALSE}
+options(scipen=999)
+options(digits=2)
+# options (LC_NUMERIC="pt_BR.UTF-8")
+```
 
-Your Pages site will use the layout and styles from the Jekyll theme you have selected in your [repository settings](https://github.com/andreferraribr/custos/settings). The name of this theme is saved in the Jekyll `_config.yml` configuration file.
 
-### Support or Contact
 
-Having trouble with Pages? Check out our [documentation](https://docs.github.com/categories/github-pages-basics/) or [contact support](https://support.github.com/contact) and we’ll help you sort it out.
+
+```{r libraries,  message=FALSE}
+library(flexdashboard)
+library(readxl)
+library(ggplot2)
+library(stringr)
+library(plotly)
+library(DT)
+library(shiny)
+# library(shinyWidgets)
+library(lubridate)
+library(tidyverse)
+library(janitor)
+library(googledrive)
+library(gargle)
+```
+
+```{r}
+# profvis({  
+# profvis::profvis(expr = rmarkdown::run("flexdashboard.Rmd"), prof_output = "flexdashboard.html")
+# https://community.rstudio.com/t/faster-flexdashboard-loading/28681/2
+```
+
+
+
+```{r negar %in%}
+# https://www.r-bloggers.com/the-notin-operator/
+'%!in%' <- Negate('%in%')
+```
+
+```{r função "dados" importar e renomear variaveis}
+# funcao para importar dados e renomear variaveis
+dados = function(tg, depara){
+  # carregar planilha com dados do Tesouro Gerencial (tg)
+  df <- read_xlsx(tg)
+  # carregar planilha com o de_para dos nomes dos atributos do Tesouro Gerencial para nomes mais amigáveis para as variáveis. Por exemplo, de(Unidade Orçamentária Código) para(uo_cod)
+  tg2r <- read_xlsx(depara)
+  # renomear as colunas da df fazendo o de_para
+  colnames(df)<-tg2r$r_name
+  return(df)
+}
+```
+
+```{r função "tabela" formatar numeros incluir totalizador}
+# comentar funcao e parametro para totalizar colunas e linhas
+# ajustar formatacao de acordo com a opcao de totalizar
+# criar forma melhor para selecionar apenas colunas numericas para formatacao de valor
+# coluna = "Total" para totalizar columnwise
+tabela = function (df,coluna = NULL) {
+      datatable((df)%>%
+  # "row" para o total aparecer na linha, ou seja, totalizar os valores de uma coluna
+  adorn_totals("row") ,
+      filter = 'top',          
+      extensions = 'Buttons',
+      options = list( 
+                  # order = list (df[(length(df))], 'desc'),
+                  dom = "Blfrtip",
+                  buttons = 
+                    list("copy", list(
+                      extend = "collection",
+                      buttons = c("csv", "excel", "pdf"),
+                      text = "Download" ) ),
+                  lengthMenu = list( c(-1, 5, 10,20),
+                                     c( "tudo",5, 10, 20)),
+                  pageLength = -1 )
+      )%>%
+  formatRound(
+  # formatar apenas as colunas numericas.
+  # sapply para identificar as colunas numericas e combinar com o parametro COLUNA
+    # ((ncol(df %>% select_if(is.character))+1):(ncol(df )+1)),
+    # http://datamining.togaware.com/survivor/Remove_Non_Numeric.html
+    (c(colnames(df[,sapply(df, is.numeric)]), coluna)),
+  digits = 2,
+  interval = 3,
+  mark = ",",
+  dec.mark = getOption("OutDec")
+)
+}
+# mesma lógica da função "tabela", mas com o objetivo de apresentar os números no formato R$
+tabela_reais = function (df,coluna = NULL) {
+      datatable((df)%>%
+  # "row" para o total aparecer na linha, ou seja, totalizar os valores de uma coluna
+  adorn_totals("row") ,
+      filter = 'top', 
+      rownames = FALSE,
+      extensions = 'Buttons',
+      options = list( 
+                  # order = list (df[(length(df))], 'desc'),
+                  dom = "Blfrtip",
+                  buttons = 
+                    list("copy", list(
+                      extend = "collection",
+                      buttons = c("csv", "excel", "pdf"),
+                      text = "Download" ) ),
+                  lengthMenu = list( c(-1, 5, 10,20),
+                                     c( "tudo",5, 10, 20)),
+                  pageLength = -1 )
+      )%>%
+  formatRound(
+  # formatar apenas as colunas numericas.
+  # sapply para identificar as colunas numericas e combinar com o parametro COLUNA
+    # ((ncol(df %>% select_if(is.character))+1):(ncol(df )+1)),
+    # http://datamining.togaware.com/survivor/Remove_Non_Numeric.html
+    (c(colnames(df[,sapply(df, is.numeric)]), coluna)),
+  digits = 2,
+  interval = 3,
+  mark = ".",
+  dec.mark = ","
+) 
+}
+```
+
+
+
+```{r função "reais" para embelezar numeros}
+# embelezar o número do value box
+reais <- function(numero){
+  paste0("R$ ",round(numero/1000,digits = 1), " K")
+}
+```
+
+
+
+```{r}
+custos <- read_excel("custos.xlsx")
+
+ugr_descentralizadas <- read_csv("ugr_descentralizadas.csv")
+
+pessoal <- read_excel("r_pessoal_ME_cargo.xlsx")
+descentralizadas <- c(202689,202690,202691,202692,202693,202694,202695,202696,202697,202698,202699,202700,202701,202702,202703,202704,202705,202706,202707,202708,202709,202710,202712,202713,202714,203631,203636,212614,212615,212616,212617,212618,212619,212620,212621,212622,212623,212624,212625,212629,212630,212631,212632,212633,212634,212637,212638,212639,212642,212643,212644,212645,212646,212647,212656,212657,212658,212659,212660,212661,212662,212665,212666,212667,212669,212671,212672,212673,212674,24313,278700,278701,278702,278703,278704,278705,278706,278707,278708,278713,278714,278716,278717,278718,278719,278720,278721,278722,278723,278724,280628,280629,280630,280632,280633,280634,280635,280636,280637,280638,280639,280640,280642,280643,280644,280646,280647,280648,280649,280650,280651,280652,280653,280654,280655,280656,280657,280658,280659,280660,280661,280662,280663,280667,280668,280669,280670,280671,280672,280676,280677,280678,280679,280680,280681,280682,280683,280684,280685,280686,280687,280688,280689,280690,280691,280692,280695,285288,304836,304860,304861,304904,304905,304906,304908,304910,304912,304913,304914,304915,304917,74073,87101)
+
+uorgs_descentralizadas <- data.frame(descentralizadas)
+
+write_csv(uorgs_descentralizadas, "uorgs_descentralizadas.csv")
+
+pessoal <- pessoal %>%  mutate (tipo_org = if_else(`UORG Código` %in% descentralizadas, "apoio", "cliente"))
+
+pessoal <- pessoal %>%  mutate (uf = str_sub(pessoal$UPAG, start = -2L, end=-1L))
+
+
+tabela(pessoal %>% group_by(uf, UPAG, tipo_org) %>% summarise(custo_pessoal = as.integer (sum(`Custo Pessoal - Ativo`)), pessoal =  as.integer(round(sum(`Força de Trabalho`)/12))))
+
+teste <- pessoal %>% filter(tipo_org == "apoio") %>% group_by(uf, UPAG, `UORG Nome Completo`,`UORG Código`, `UORG Nome`) %>% summarise(custo_pessoal = sum(`Custo Pessoal - Ativo`))
+
+teste <- teste %>% select(-custo_pessoal)
+
+write_csv(teste, "uorgs_descentralizadas.csv")
+
+zzz <- read_csv("uorgs_descentralizadas.csv")
+
+```
+
+```{r}
+nomes_atributos <-  read_excel("tg2r_custos_me.xlsx")
+colnames(custos) <- nomes_atributos$r_name
+```
+
+
+```{r}
+tabela(custos %>% group_by(ug_emitente, ug_emitente_id) %>% filter(str_detect(ug_emitente, "ADM"), ug_emitente_id %!in% c("170479","170312","170607"))  %>% summarise(custo = sum(custo)))
+
+tabela(custos %>% group_by(ug_emitente, ug_emitente_id) %>% filter(str_detect(ug_emitente, "ADM"), ug_emitente_id %!in% c("170479","170312","170607"))  %>% summarise(custo = sum(custo)))
+
+custos <- custos %>%  mutate(uf =
+  case_when(
+  ug_icc == "GERENCIA REG. ADMINISTRACAO DO ME-MATO GROSSO"  ~ "MT", 
+  ug_icc == "GERENCIA REG. DE ADM. DO ME - ESPIRITO SANTO"   ~ "ES",
+  ug_icc == "GERENCIA REG. DE ADMINISTRACAO DO ME - ACRE"    ~ "AC",
+  ug_icc == "GERENCIA REG. DE ADMINISTRACAO DO ME - AMAPA"   ~ "AP",
+  ug_icc == "GERENCIA REG. DE ADMINISTRACAO DO ME - GOIAS"   ~ "GO",
+  ug_icc == "GERENCIA REG. DE ADMINISTRACAO DO ME - PIAUI"   ~ "PI",
+  ug_icc == "GERENCIA REG. DE ADMINISTRACAO DO ME-AMAZONAS"  ~ "AM",
+  ug_icc == "GERENCIA REG. DE ADMINISTRACAO DO ME-RONDONIA"  ~ "RO",
+  ug_icc == "GERENCIA REG.DE ADM.DO ME - SANTA CATARINA"     ~ "SC",
+  ug_icc == "GERENCIA REG.DE ADM.DO ME-MATO GROSSO DO SUL"   ~ "MS",
+  ug_icc == "GERENCIA REG.DE ADM.DO ME-RIO GARNDE DO NORTE"  ~ "RN",
+  ug_icc == "GERENCIA REG.DE ADMINISTRACAO DO ME - ALAGOAS"  ~ "AL",
+  ug_icc == "GERENCIA REG.DE ADMINISTRACAO DO ME - PARAIBA"  ~ "PB",
+  ug_icc == "GERENCIA REG.DE ADMINISTRACAO DO ME - RORAIMA"  ~ "RR",
+  ug_icc == "GERENCIA REG.DE ADMINISTRACAO DO ME - SERGIPE"  ~ "SE",
+  ug_icc == "GERENCIA REG.DE ADMINISTRACAO DO ME-MARANHAO"   ~ "MA",
+  ug_icc == "SUPERINTENDENCIA REG. ADM. DO ME - BAHIA"       ~ "BA",
+  ug_icc == "SUPERINTENDENCIA REG. ADM. DO ME - CEARA"       ~ "CE",
+  ug_icc == "SUPERINTENDENCIA REG. ADM. DO ME - PARA"        ~ "PA",
+  ug_icc == "SUPERINTENDENCIA REG. ADM. DO ME - PARANA"      ~ "PR",
+  ug_icc == "SUPERINTENDENCIA REG. ADM. DO ME - PERNANBUCO"  ~ "PE",
+  ug_icc == "SUPERINTENDENCIA REG. ADM. DO ME - SAO PAULO"   ~ "SP",
+  ug_icc == "SUPERINTENDENCIA REG. ADM. DO ME-MINAS GERAIS"  ~ "MG",
+  ug_icc == "SUPERINTENDENCIA REG.ADM.DO ME-RIO DE JANEIRO"  ~ "RJ",
+  ug_icc == "SUPERINTENDENCIA REG.ADM.DO ME-RIO GRANDE SUL"  ~ "RS"
+  )
+)
+
+finalistico <- unique(custos %>% group_by(ug_emitente, ug_emitente_id) %>% filter(str_detect(ug_emitente, "ADM"), ug_emitente_id %!in% c("170479","170312","170607"))  %>% summarise(custo = sum(custo)))
+
+meio <- unique(custos %>% group_by(ug_icc, ug_icc_id, ugr,ugr_id, ndd_id, ndd, pi, pi_id, uf) %>% filter(str_detect(ug_emitente, "ADM"), ug_emitente_id %!in% c("170479","170312","170607"), ug_icc_id %in% finalistico$ug_emitente_id)  %>% summarise(custo = sum(custo)))
+
+tabela(meio %>% group_by(ug_icc, ugr, pi, pi_id) %>% filter(ugr %in% ug_icc, endsWith(pi, "UNIDES")) %>% summarise(custo= sum(custo)))
+
+
+tabela(meio %>% group_by(ug_icc, ugr) %>% filter(ugr %in% ug_icc, endsWith(pi_id, "UNIDES")) %>% summarise(custo= sum(custo)))
+
+meio2 <- meio %>% group_by(ug_icc, ugr, ugr_id, uf) %>% filter(ugr %in% ug_icc, endsWith(pi_id, "UNIDES")) %>% summarise(custo_apoio= sum(custo))
+
+meio2 <- meio2 %>%  select (-custo_apoio)
+
+write_csv(meio2, "ugr_descentralizadas.csv")
+
+
+relativo <- full_join(meio2,finalistico, by = c("ug_icc" ="ug_emitente")) %>% mutate(peso = custo_apoio/custo)
+
+tabela(relativo)
+
+meio2 <- meio2 %>% mutate(uf =
+  case_when(
+  ug_icc == "GERENCIA REG. ADMINISTRACAO DO ME-MATO GROSSO"  ~ "MT", 
+  ug_icc == "GERENCIA REG. DE ADM. DO ME - ESPIRITO SANTO"   ~ "ES",
+  ug_icc == "GERENCIA REG. DE ADMINISTRACAO DO ME - ACRE"    ~ "AC",
+  ug_icc == "GERENCIA REG. DE ADMINISTRACAO DO ME - AMAPA"   ~ "AP",
+  ug_icc == "GERENCIA REG. DE ADMINISTRACAO DO ME - GOIAS"   ~ "GO",
+  ug_icc == "GERENCIA REG. DE ADMINISTRACAO DO ME - PIAUI"   ~ "PI",
+  ug_icc == "GERENCIA REG. DE ADMINISTRACAO DO ME-AMAZONAS"  ~ "AM",
+  ug_icc == "GERENCIA REG. DE ADMINISTRACAO DO ME-RONDONIA"  ~ "RO",
+  ug_icc == "GERENCIA REG.DE ADM.DO ME - SANTA CATARINA"     ~ "SC",
+  ug_icc == "GERENCIA REG.DE ADM.DO ME-MATO GROSSO DO SUL"   ~ "MS",
+  ug_icc == "GERENCIA REG.DE ADM.DO ME-RIO GARNDE DO NORTE"  ~ "RN",
+  ug_icc == "GERENCIA REG.DE ADMINISTRACAO DO ME - ALAGOAS"  ~ "AL",
+  ug_icc == "GERENCIA REG.DE ADMINISTRACAO DO ME - PARAIBA"  ~ "PB",
+  ug_icc == "GERENCIA REG.DE ADMINISTRACAO DO ME - RORAIMA"  ~ "RR",
+  ug_icc == "GERENCIA REG.DE ADMINISTRACAO DO ME - SERGIPE"  ~ "SE",
+  ug_icc == "GERENCIA REG.DE ADMINISTRACAO DO ME-MARANHAO"   ~ "MA",
+  ug_icc == "SUPERINTENDENCIA REG. ADM. DO ME - BAHIA"       ~ "BA",
+  ug_icc == "SUPERINTENDENCIA REG. ADM. DO ME - CEARA"       ~ "CE",
+  ug_icc == "SUPERINTENDENCIA REG. ADM. DO ME - PARA"        ~ "PA",
+  ug_icc == "SUPERINTENDENCIA REG. ADM. DO ME - PARANA"      ~ "PR",
+  ug_icc == "SUPERINTENDENCIA REG. ADM. DO ME - PERNANBUCO"  ~ "PE",
+  ug_icc == "SUPERINTENDENCIA REG. ADM. DO ME - SAO PAULO"   ~ "SP",
+  ug_icc == "SUPERINTENDENCIA REG. ADM. DO ME-MINAS GERAIS"  ~ "MG",
+  ug_icc == "SUPERINTENDENCIA REG.ADM.DO ME-RIO DE JANEIRO"  ~ "RJ",
+  ug_icc == "SUPERINTENDENCIA REG.ADM.DO ME-RIO GRANDE SUL"  ~ "RS"
+  )
+)
+
+# meio2 <- cbind((as.data.frame( str_split_fixed(meio2$ug_icc,"-",2))), meio2)
+# 
+# meio2 <- meio2%>% mutate(uf= str_trim(uf$V2,side =c("both")))
+# 
+# uf = as.data.frame( str_split_fixed(meio2$ug_icc,"-",2))
+# 
+# uf <- uf %>% mutate(uf= str_trim(uf$V2,side =c("both")))
+
+
+
+custo_total <- full_join(meio2, gra) %>% mutate(custo_total = custo_apoio + custo_pessoal)
+tabela (custo_total)
+
+```
+
+© 2021 GitHub, Inc.
