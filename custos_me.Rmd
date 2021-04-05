@@ -1,3 +1,21 @@
+---
+title: "CUSTOS 2020"
+output:
+  flexdashboard::flex_dashboard:
+    orientation: rows
+    source_code: https://github.com/andreferraribr/custos
+    social:
+    - twitter
+    - facebook
+    - menu
+runtime: shiny
+
+---
+
+
+
+
+
 ```{r setup, include=FALSE}
 options(scipen=999)
 options(digits=2)
@@ -15,7 +33,7 @@ library(stringr)
 library(plotly)
 library(DT)
 library(shiny)
-# library(shinyWidgets)
+library(shinyWidgets)
 library(lubridate)
 library(tidyverse)
 library(janitor)
@@ -119,7 +137,7 @@ tabela_reais = function (df,coluna = NULL) {
 ```{r função "reais" para embelezar numeros}
 # embelezar o número do value box
 reais <- function(numero){
-  paste0("R$ ",round(numero/1000,digits = 1), " K")
+  paste0("R$ ",round(numero/1000000,digits = 1), " Milhao")
 }
 ```
 
@@ -137,12 +155,12 @@ pessoal <- pessoal %>%  mutate (tipo_org = if_else(`UORG Código` %in% uorgs_des
 pessoal <- pessoal %>%  mutate (uf = str_sub(pessoal$UPAG, start = -2L, end=-1L))
 
 
-custo_pessoal <- (pessoal %>% group_by(uf,  tipo_org) %>% summarise(custo_pessoal  =  (sum(`Custo Pessoal - Ativo`)/1000)))
+custo_pessoal <- (pessoal %>% group_by(uf,  tipo_org) %>% summarise(custo_pessoal  =  (sum(`Custo Pessoal - Ativo`))))
 
-
-tabela(pessoal %>% group_by(uf, UPAG, tipo_org) %>% summarise(custo_pessoal  =  (sum(`Custo Pessoal - Ativo`)/1000), pessoal =  format(round(sum(`Força de Trabalho`)/12), nsmall = 0)))
-
-tabela(pessoal %>% group_by(uf, tipo_org) %>% filter(uf %!in% c("AC","RR","RO","AP", "DF"))%>% summarise(custo_pessoal  =  (sum(`Custo Pessoal - Ativo`)/1000))%>% pivot_wider( names_from = tipo_org, values_from = custo_pessoal) %>% mutate(percentual = apoio/cliente ))
+# 
+# tabela(pessoal %>% group_by(uf, UPAG, tipo_org) %>% summarise(custo_pessoal  =  (sum(`Custo Pessoal - Ativo`)/1000), pessoal =  format(round(sum(`Força de Trabalho`)/12), nsmall = 0)))
+# 
+# tabela(pessoal %>% group_by(uf, tipo_org) %>% filter(uf %!in% c("AC","RR","RO","AP", "DF"))%>% summarise(custo_pessoal  =  (sum(`Custo Pessoal - Ativo`)/1000))%>% pivot_wider( names_from = tipo_org, values_from = custo_pessoal) %>% mutate(percentual = apoio/cliente ))
 
 ```
 
@@ -190,10 +208,10 @@ custos <- custos %>%  mutate(uf =
 
 custos <- custos %>% mutate(tipo_org =ifelse( ugr_id %in% ugr_descentralizadas$ugr_id, "apoio","cliente"))
 
-custeio <- (custos %>% group_by(uf, tipo_org) %>% filter (uf != "na")%>% summarise(custeio  =  (sum(custo)/1000)))
+custeio <- (custos %>% group_by(uf, tipo_org) %>% filter (uf != "na")%>% summarise(custeio  =  (sum(custo))))
 
 
-tabela(custos %>% group_by(uf, tipo_org) %>% filter (uf != "na",uf %!in% c("AC","RR","RO","AP", "DF") )%>% summarise(custo_apoios  =  (sum(custo)/1000))%>% pivot_wider( names_from = tipo_org, values_from = custo_apoios)  %>% mutate(percentual = apoio/cliente ))
+# tabela(custos %>% group_by(uf, tipo_org) %>% filter (uf != "na",uf %!in% c("AC","RR","RO","AP", "DF") )%>% summarise(custo_apoios  =  (sum(custo)/1000))%>% pivot_wider( names_from = tipo_org, values_from = custo_apoios)  %>% mutate(percentual = apoio/cliente ))
 
 # tabela(custos %>% group_by(uf,ug_emitente, tipo_org,centro_custo ,ndd) %>% filter (uf != "na")%>% summarise(custo_apoios  =  (sum(custo)/1000)))
 
@@ -204,27 +222,87 @@ custo_total <- full_join(custeio, custo_pessoal, by = c("uf" = "uf",  "tipo_org"
 
 custo_total <- custo_total %>% filter (uf %!in% c("AC","RR","RO","AP", "DF") )
 
-tabela (custo_total %>% group_by(uf, tipo_org) %>% summarise(custo_total  =  (sum(custo_pessoal+ custeio)))%>% pivot_wider( names_from = tipo_org, values_from = custo_total)  %>% mutate(percentual = apoio/cliente ))
+
+
+custo_total <-  (custo_total %>% group_by(uf, tipo_org) %>% summarise(custo_total  =  (sum(custo_pessoal+ custeio)))%>% pivot_wider( names_from = tipo_org, values_from = custo_total)  %>% mutate(percentual = apoio/cliente )) 
 
 
 
 ```
 ```{r}
-ggplot(custo_total %>% filter(tipo_org == "apoio") %>% pivot_longer(cols = c(custo_pessoal, custeio),names_to = "tipo_custo",values_to = "custo"), aes(x = uf, y = custo ,fill = tipo_custo)) + 
-    geom_bar(position = "fill",stat = "identity")
+# ggplot(custo_total %>% filter(tipo_org == "apoio") %>% pivot_longer(cols = c(custo_pessoal, custeio),names_to = "tipo_custo",values_to = "custo"), aes(x = uf, y = custo ,fill = tipo_custo)) + coord_flip()+
+    # geom_bar(position = "fill",stat = "identity")
 
-tabela(custo_total %>% pivot_longer(cols = c(custo_pessoal, custeio),names_to = "tipo custo",values_to = "custo"))
+
+
+
+# tabela(custo_total %>% pivot_longer(cols = c(custo_pessoal, custeio),names_to = "tipo custo",values_to = "custo"))
 ```
 ```{r}
-ggplot(custo_total %>% filter(tipo_org == "apoio") , aes(x = custo_pessoal, y = custeio)) + 
-    geom_point()
+# ggplot(custo_total %>% filter(tipo_org == "apoio") , aes(x = custo_pessoal, y = custeio)) + 
+#     geom_point()
 ```
+```{r eval=FALSE, include=FALSE}
+
+# t_p <- (custo_total %>% group_by(uf, tipo_org) %>% summarise(custo_total  =  (sum(custo_pessoal+ custeio)))%>% pivot_wider( names_from = tipo_org, values_from = custo_total)  %>% mutate(percentual = apoio/cliente ))
+# 
+# ggplot(t_p   , aes(x = reorder (uf,-percentual), y = percentual))+ coord_flip() + 
+#     geom_col()
+```
+
+Geral
+=============================================
+### escolha o Estado:
+
+```{r, input$uf}
+# input para selecionar a UF
+selectInput("uf", label = h3("escolha o Estado:"),
+    choices = c (unique(custo_total$uf), "TODOS"),
+    selected = "TODOS")
+custo_total_reactive <- reactive(custo_total %>% filter( if_else( input$uf == "TODOS", uf != "TODOS" , uf == input$uf)))
+
+```
+
+
+
+Row 
+-----------------------------------------------------------------------
+
+
+
+
+### Comissão
+
+
+
 ```{r}
 
-t_p <- (custo_total %>% group_by(uf, tipo_org) %>% summarise(custo_total  =  (sum(custo_pessoal+ custeio)))%>% pivot_wider( names_from = tipo_org, values_from = custo_total)  %>% mutate(percentual = apoio/cliente ))
-
-ggplot(t_p   , aes(x = reorder (uf,-percentual), y = percentual))+ coord_flip() + 
-    geom_col()
+renderValueBox({
+ valueBox( sum(custo_total_reactive()$apoio)/sum(custo_total_reactive()$cliente)*100)
+  })
 ```
 
-© 2021 GitHub, Inc.
+
+### Custo Apoio
+
+
+
+```{r}
+
+renderValueBox({
+ valueBox( reais(sum(custo_total_reactive()$apoio)))
+  })
+```
+
+
+
+### Custo Cliente
+
+
+
+```{r}
+
+renderValueBox({
+ valueBox( reais(sum(custo_total_reactive()$cliente)))
+  })
+```
