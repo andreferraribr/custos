@@ -137,7 +137,7 @@ tabela_reais = function (df,coluna = NULL) {
 ```{r função "reais" para embelezar numeros}
 # embelezar o número do value box
 reais <- function(numero){
-  paste0("R$ ",round(numero/1000000,digits = 1), " Milhao")
+  paste0("R$ ",round(numero/1000,digits = 1), " K")
 }
 ```
 
@@ -155,7 +155,7 @@ pessoal <- pessoal %>%  mutate (tipo_org = if_else(`UORG Código` %in% uorgs_des
 pessoal <- pessoal %>%  mutate (uf = str_sub(pessoal$UPAG, start = -2L, end=-1L))
 
 
-custo_pessoal <- (pessoal %>% group_by(uf,  tipo_org) %>% summarise(custo_pessoal  =  (sum(`Custo Pessoal - Ativo`))))
+custo_pessoal <- (pessoal %>% group_by(uf,  tipo_org) %>% filter(uf %!in% c("AC","RR","RO","AP", "DF"))%>% summarise(custo_pessoal  =  (sum(`Custo Pessoal - Ativo`)/1000)))
 
 # 
 # tabela(pessoal %>% group_by(uf, UPAG, tipo_org) %>% summarise(custo_pessoal  =  (sum(`Custo Pessoal - Ativo`)/1000), pessoal =  format(round(sum(`Força de Trabalho`)/12), nsmall = 0)))
@@ -208,7 +208,7 @@ custos <- custos %>%  mutate(uf =
 
 custos <- custos %>% mutate(tipo_org =ifelse( ugr_id %in% ugr_descentralizadas$ugr_id, "apoio","cliente"))
 
-custeio <- (custos %>% group_by(uf, tipo_org) %>% filter (uf != "na")%>% summarise(custeio  =  (sum(custo))))
+custeio <- (custos %>% group_by(uf, tipo_org)  %>% filter(uf %!in% c("AC","RR","RO","AP", "DF", "na"))%>% summarise(custeio  =  (sum(custo)/1000)))
 
 
 # tabela(custos %>% group_by(uf, tipo_org) %>% filter (uf != "na",uf %!in% c("AC","RR","RO","AP", "DF") )%>% summarise(custo_apoios  =  (sum(custo)/1000))%>% pivot_wider( names_from = tipo_org, values_from = custo_apoios)  %>% mutate(percentual = apoio/cliente ))
@@ -220,7 +220,7 @@ custeio <- (custos %>% group_by(uf, tipo_org) %>% filter (uf != "na")%>% summari
 
 custo_total <- full_join(custeio, custo_pessoal, by = c("uf" = "uf",  "tipo_org" = "tipo_org"))
 
-custo_total <- custo_total %>% filter (uf %!in% c("AC","RR","RO","AP", "DF") )
+
 
 
 
@@ -250,9 +250,9 @@ custo_total <-  (custo_total %>% group_by(uf, tipo_org) %>% summarise(custo_tota
 #     geom_col()
 ```
 
-Geral
-=============================================
-### escolha o Estado:
+Sidebar {.sidebar}
+=====================================
+
 
 ```{r, input$uf}
 # input para selecionar a UF
@@ -260,8 +260,15 @@ selectInput("uf", label = h3("escolha o Estado:"),
     choices = c (unique(custo_total$uf), "TODOS"),
     selected = "TODOS")
 custo_total_reactive <- reactive(custo_total %>% filter( if_else( input$uf == "TODOS", uf != "TODOS" , uf == input$uf)))
-
+custeio_reactive <- reactive(custeio %>% filter( if_else( input$uf == "TODOS", uf != "TODOS" , uf == input$uf)))
+custo_pessoal <- reactive(custo_pessoal %>% filter( if_else( input$uf == "TODOS", uf != "TODOS" , uf == input$uf)))
 ```
+
+Geral
+=============================================
+
+
+
 
 
 
@@ -305,4 +312,44 @@ renderValueBox({
 renderValueBox({
  valueBox( reais(sum(custo_total_reactive()$cliente)))
   })
+```
+
+
+Row 
+-----------------------------------------------------------------------
+
+### Ranking comissao
+
+
+```{r}
+renderPlotly( ggplot(custo_total   , aes(x = reorder (uf,-percentual), y = percentual))+ coord_flip() + 
+    geom_col())
+```
+
+
+
+### Ranking custo total das unidades de apoio
+
+
+```{r}
+renderPlotly( ggplot(custeio   , aes(x = reorder (uf,-custeio), y = custeio))+ coord_flip() + 
+    geom_col())
+```
+
+
+### Ranking custo com pessoal das unidades de apoio
+
+
+```{r}
+renderPlotly( ggplot(custo_total   , aes(x = reorder (uf,-apoio), y = apoio))+ coord_flip() + 
+    geom_col())
+```
+
+
+### Ranking custeio  das unidades de apoio
+
+
+```{r}
+renderPlotly( ggplot(custo_total   , aes(x = reorder (uf,-percentual), y = percentual))+ coord_flip() + 
+    geom_col())
 ```
