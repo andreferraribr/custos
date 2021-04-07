@@ -155,7 +155,7 @@ pessoal <- pessoal %>%  mutate (tipo_org = if_else(`UORG Código` %in% uorgs_des
 pessoal <- pessoal %>%  mutate (uf = str_sub(pessoal$UPAG, start = -2L, end=-1L))
 
 
-custo_pessoal <- (pessoal %>% group_by(uf,  tipo_org) %>% filter(uf %!in% c("AC","RR","RO","AP", "DF"))%>% summarise(custo_pessoal  =  (sum(`Custo Pessoal - Ativo`)/1000)))
+custo_pessoal <- (pessoal %>% group_by(uf,  tipo_org) %>% summarise(custo_pessoal  =  (sum(`Custo Pessoal - Ativo`)/1000)))
 
 # 
 # tabela(pessoal %>% group_by(uf, UPAG, tipo_org) %>% summarise(custo_pessoal  =  (sum(`Custo Pessoal - Ativo`)/1000), pessoal =  format(round(sum(`Força de Trabalho`)/12), nsmall = 0)))
@@ -208,9 +208,9 @@ custos <- custos %>%  mutate(uf =
 
 custos <- custos %>% mutate(tipo_org =ifelse( ugr_id %in% ugr_descentralizadas$ugr_id, "apoio","cliente"))
 
-custeio <- (custos %>% group_by(uf, tipo_org)  %>% filter(uf %!in% c("AC","RR","RO","AP", "DF", "na"))%>% summarise(custeio  =  (sum(custo)/1000)))
+custeio <- (custos %>% group_by(uf, tipo_org)  %>% summarise(custeio  =  (sum(custo)/1000)))
 
-
+tg <- (custos %>% group_by(uf, tipo_org, ug_emitente_id)  %>% filter(uf %!in% c("AC","RR","RO","AP", "DF", "na"))%>% summarise(custeio  =  (sum(custo)/1000)))
 # tabela(custos %>% group_by(uf, tipo_org) %>% filter (uf != "na",uf %!in% c("AC","RR","RO","AP", "DF") )%>% summarise(custo_apoios  =  (sum(custo)/1000))%>% pivot_wider( names_from = tipo_org, values_from = custo_apoios)  %>% mutate(percentual = apoio/cliente ))
 
 # tabela(custos %>% group_by(uf,ug_emitente, tipo_org,centro_custo ,ndd) %>% filter (uf != "na")%>% summarise(custo_apoios  =  (sum(custo)/1000)))
@@ -259,12 +259,15 @@ Sidebar {.sidebar}
 selectInput("uf", label = h3("escolha o Estado:"),
     choices = c (unique(custo_total$uf), "TODOS"),
     selected = "TODOS")
+custeio_apoio <- custeio %>% filter(tipo_org == "apoio")
+custo_pessoal_apoio <- custo_pessoal %>% filter(tipo_org == "apoio")
+
 custo_total_reactive <- reactive(custo_total %>% filter( if_else( input$uf == "TODOS", uf != "TODOS" , uf == input$uf)))
-custeio_reactive <- reactive(custeio %>% filter( if_else( input$uf == "TODOS", uf != "TODOS" , uf == input$uf)))
-custo_pessoal <- reactive(custo_pessoal %>% filter( if_else( input$uf == "TODOS", uf != "TODOS" , uf == input$uf)))
+custeio_reactive <- reactive(custeio_apoio %>% filter( if_else( input$uf == "TODOS", uf != "TODOS" , uf == input$uf)))
+custo_pessoal_reactive <- reactive(custo_pessoal_apoio %>% filter( if_else( input$uf == "TODOS", uf != "TODOS" , uf == input$uf)))
 ```
 
-Geral
+Unidades Descentralizadas
 =============================================
 
 
@@ -285,32 +288,35 @@ Row
 ```{r}
 
 renderValueBox({
- valueBox( sum(custo_total_reactive()$apoio)/sum(custo_total_reactive()$cliente)*100)
+ valueBox( sum(custo_total_reactive()$apoio)/sum(custo_total_reactive()$cliente)*100,
+           color = "gray")
   })
 ```
 
 
-### Custo Apoio
+### Custeio
 
 
 
 ```{r}
 
 renderValueBox({
- valueBox( reais(sum(custo_total_reactive()$apoio)))
+ valueBox( reais(sum(custeio_reactive()$custeio)),
+  color = "#f54242")
   })
 ```
 
 
 
-### Custo Cliente
+### Custo com Pessoal
 
 
 
 ```{r}
 
 renderValueBox({
- valueBox( reais(sum(custo_total_reactive()$cliente)))
+ valueBox( reais(sum(custo_pessoal_reactive()$custo_pessoal)),
+  color = "#f242f5")
   })
 ```
 
