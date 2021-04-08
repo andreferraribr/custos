@@ -210,7 +210,7 @@ custos <- custos %>% mutate(tipo_org =ifelse( ugr_id %in% ugr_descentralizadas$u
 
 custeio <- (custos %>% group_by(uf, tipo_org)  %>% summarise(custeio  =  (sum(custo)/1000)))
 
-tg <- (custos %>% group_by(uf, tipo_org, ug_emitente_id)  %>% filter(uf %!in% c("AC","RR","RO","AP", "DF", "na"))%>% summarise(custeio  =  (sum(custo)/1000)))
+# tg <- (custos %>% group_by(uf, tipo_org, ug_emitente_id)  %>% filter(uf %!in% c("AC","RR","RO","AP", "DF", "na"))%>% summarise(custeio  =  (sum(custo)/1000)))
 # tabela(custos %>% group_by(uf, tipo_org) %>% filter (uf != "na",uf %!in% c("AC","RR","RO","AP", "DF") )%>% summarise(custo_apoios  =  (sum(custo)/1000))%>% pivot_wider( names_from = tipo_org, values_from = custo_apoios)  %>% mutate(percentual = apoio/cliente ))
 
 # tabela(custos %>% group_by(uf,ug_emitente, tipo_org,centro_custo ,ndd) %>% filter (uf != "na")%>% summarise(custo_apoios  =  (sum(custo)/1000)))
@@ -218,12 +218,19 @@ tg <- (custos %>% group_by(uf, tipo_org, ug_emitente_id)  %>% filter(uf %!in% c(
 ```
 ```{r}
 
+
+
+
+custo_apoio <- full_join(custeio %>% filter(tipo_org == "apoio"), custo_pessoal %>% filter(tipo_org == "apoio"), by = c("uf" = "uf",  "tipo_org" = "tipo_org"))
+
+custo_cliente <- full_join(custeio %>% filter(tipo_org == "cliente"), custo_pessoal %>% filter(tipo_org == "cliente"), by = c("uf" = "uf",  "tipo_org" = "tipo_org"))
+
+custo_apoio_reactive <- reactive(custo_apoio %>% filter(if_else( input$uf == "TODOS", uf != "TODOS" , uf == input$uf)))
+
+custo_cliente_reactive <- reactive(custo_cliente %>% filter(if_else( input$uf == "TODOS", uf != "TODOS" , uf == input$uf)))
+
+
 custo_total <- full_join(custeio, custo_pessoal, by = c("uf" = "uf",  "tipo_org" = "tipo_org"))
-
-
-
-
-
 custo_total <-  (custo_total %>% group_by(uf, tipo_org) %>% summarise(custo_total  =  (sum(custo_pessoal+ custeio)))%>% pivot_wider( names_from = tipo_org, values_from = custo_total)  %>% mutate(percentual = apoio/cliente )) 
 
 
@@ -259,12 +266,10 @@ Sidebar {.sidebar}
 selectInput("uf", label = h3("escolha o Estado:"),
     choices = c (unique(custo_total$uf), "TODOS"),
     selected = "TODOS")
-custeio_apoio <- custeio %>% filter(tipo_org == "apoio")
-custo_pessoal_apoio <- custo_pessoal %>% filter(tipo_org == "apoio")
+
 
 custo_total_reactive <- reactive(custo_total %>% filter( if_else( input$uf == "TODOS", uf != "TODOS" , uf == input$uf)))
-custeio_reactive <- reactive(custeio_apoio %>% filter( if_else( input$uf == "TODOS", uf != "TODOS" , uf == input$uf)))
-custo_pessoal_reactive <- reactive(custo_pessoal_apoio %>% filter( if_else( input$uf == "TODOS", uf != "TODOS" , uf == input$uf)))
+
 ```
 
 Unidades Descentralizadas
@@ -280,18 +285,18 @@ Row
 
 
 
-
-### Comissão
+### Custo total
 
 
 
 ```{r}
 
 renderValueBox({
- valueBox( sum(custo_total_reactive()$apoio)/sum(custo_total_reactive()$cliente)*100,
-           color = "gray")
+ valueBox( reais(sum(custo_apoio_reactive()$custo_pessoal)+sum(custo_apoio_reactive()$custeio)),
+  color = "red")
   })
 ```
+
 
 
 ### Custeio
@@ -301,12 +306,10 @@ renderValueBox({
 ```{r}
 
 renderValueBox({
- valueBox( reais(sum(custeio_reactive()$custeio)),
-  color = "#f54242")
+ valueBox( reais(sum(custo_apoio_reactive()$custeio)),
+  color = "purple")
   })
 ```
-
-
 
 ### Custo com Pessoal
 
@@ -315,21 +318,40 @@ renderValueBox({
 ```{r}
 
 renderValueBox({
- valueBox( reais(sum(custo_pessoal_reactive()$custo_pessoal)),
+ valueBox( reais(sum(custo_apoio_reactive()$custo_pessoal)),
   color = "#f242f5")
   })
 ```
+
+### Comissão
+
+
+
+```{r}
+
+renderValueBox({
+ valueBox( (sum(custo_apoio_reactive()$custeio)+ sum(custo_apoio_reactive()$custo_pessoal))/(sum(custo_cliente_reactive()$custeio)+ sum(custo_cliente_reactive()$custo_pessoal))*100,
+           color = "gray")
+  })
+```
+
+
+
+
+
 
 
 Row 
 -----------------------------------------------------------------------
 
-### Ranking comissao
+
+### Ranking custo com pessoal das unidades de apoio
+
 
 
 ```{r}
-renderPlotly( ggplot(custo_total   , aes(x = reorder (uf,-percentual), y = percentual))+ coord_flip() + 
-    geom_col())
+renderPlotly( ggplot(custo_cliente   , aes(x = reorder (uf,-custo_pessoal), y = custo_pessoal))+ coord_flip() + 
+    geom_col(color = if_else(custo_cliente$uf == input$uf, "red", "grey")))
 ```
 
 
@@ -338,24 +360,26 @@ renderPlotly( ggplot(custo_total   , aes(x = reorder (uf,-percentual), y = perce
 
 
 ```{r}
-renderPlotly( ggplot(custeio   , aes(x = reorder (uf,-custeio), y = custeio))+ coord_flip() + 
-    geom_col())
+renderPlotly( ggplot(custo_cliente   , aes(x = reorder (uf,-custeio), y = custeio))+ coord_flip() + 
+    geom_col(color = if_else(custo_cliente$uf == input$uf, "red", "grey")))
 ```
 
 
 ### Ranking custo com pessoal das unidades de apoio
 
 
+
 ```{r}
-renderPlotly( ggplot(custo_total   , aes(x = reorder (uf,-apoio), y = apoio))+ coord_flip() + 
-    geom_col())
+renderPlotly( ggplot(custo_cliente   , aes(x = reorder (uf,-custo_pessoal), y = custo_pessoal))+ coord_flip() + 
+    geom_col(color = if_else(custo_cliente$uf == input$uf, "red", "grey")))
 ```
 
 
-### Ranking custeio  das unidades de apoio
+
+### Ranking comissao
 
 
 ```{r}
 renderPlotly( ggplot(custo_total   , aes(x = reorder (uf,-percentual), y = percentual))+ coord_flip() + 
-    geom_col())
+    geom_col(color = if_else(custo_cliente$uf == input$uf, "red", "grey")))
 ```
