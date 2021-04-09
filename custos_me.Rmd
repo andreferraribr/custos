@@ -208,6 +208,8 @@ custos <- custos %>%  mutate(uf =
 
 custos <- custos %>% mutate(tipo_org =ifelse( ugr_id %in% ugr_descentralizadas$ugr_id, "apoio","cliente"))
 
+custos_reactive <- reactive(custos %>% filter(tipo_org == "apoio") %>% group_by(pi, ndd, centro_custo, uf) %>% summarise(custo = sum (custo)))
+
 custeio <- (custos %>% group_by(uf, tipo_org)  %>% summarise(custeio  =  (sum(custo)/1000)))
 
 # tg <- (custos %>% group_by(uf, tipo_org, ug_emitente_id)  %>% filter(uf %!in% c("AC","RR","RO","AP", "DF", "na"))%>% summarise(custeio  =  (sum(custo)/1000)))
@@ -345,35 +347,12 @@ Row
 -----------------------------------------------------------------------
 
 
-### Ranking custo com pessoal das unidades de apoio
+### custo total das unidades descentralizadas
 
 
 
 ```{r}
-renderPlotly( ggplot(custo_cliente   , aes(x = reorder (uf,-custo_pessoal), y = custo_pessoal))+ coord_flip() + 
-    geom_col(fill = if_else(custo_total$uf == input$uf, "red", "gray"))+ theme_classic()
-    )
-```
-
-
-
-### Ranking custo total das unidades de apoio
-
-
-```{r}
-renderPlotly( ggplot(custo_cliente   , aes(x = reorder (uf,-custeio), y = custeio))+ coord_flip() + 
-    geom_col(fill = if_else(custo_total$uf == input$uf, "red", "gray"))+ theme_classic()
-    + theme(axis.title.x = element_blank(),
-          axis.title.y = element_blank()))
-```
-
-
-### Ranking custo com pessoal das unidades de apoio
-
-
-
-```{r}
-renderPlotly( ggplot(custo_cliente   , aes(x = reorder (uf,-custo_pessoal), y = custo_pessoal))+ coord_flip() + 
+renderPlotly( ggplot(custo_cliente    , aes(x = reorder (uf,-(custeio+custo_pessoal)), y = (custeio+custo_pessoal)))+ coord_flip() + 
     geom_col(fill = if_else(custo_total$uf == input$uf, "red", "gray"))+ theme_classic()
     + theme(axis.title.x = element_blank(),
           axis.title.y = element_blank()))
@@ -381,7 +360,31 @@ renderPlotly( ggplot(custo_cliente   , aes(x = reorder (uf,-custo_pessoal), y = 
 
 
 
-### Ranking comissao
+### custeio das unidades descentralizadas
+
+
+```{r}
+renderPlotly( ggplot(custo_apoio   , aes(x = reorder (uf,-custeio), y = custeio))+ coord_flip() + 
+    geom_col(fill = if_else(custo_total$uf == input$uf, "red", "gray"))+ theme_classic()
+    + theme(axis.title.x = element_blank(),
+          axis.title.y = element_blank()))
+```
+
+
+### custo com pessoal das unidades descentralizadas
+
+
+
+```{r}
+renderPlotly( ggplot(custo_apoio   , aes(x = reorder (uf,-custo_pessoal), y = custo_pessoal))+ coord_flip() + 
+    geom_col(fill = if_else(custo_total$uf == input$uf, "red", "gray"))+ theme_classic()
+    + theme(axis.title.x = element_blank(),
+          axis.title.y = element_blank()))
+```
+
+
+
+### Ranking comissao (custo total dos clientes / custo total das unidades descentralizadas)
 
 
 ```{r}
@@ -398,10 +401,124 @@ renderPlotly({
 Custeio
 =============================================
 
+
+
+Row 
+-----------------------------------------------------------------------
+
+
+
+### Custeio
+
+
+
 ```{r}
-renderDT(tabela(custo_apoio))
+
+renderValueBox({
+ valueBox( reais(sum(custo_apoio_reactive()$custeio)),
+  color = "red")
+  })
 ```
 
+
+
+### Principal Natureza da Despesa
+
+
+
+```{r}
+
+renderValueBox({
+  
+  teste <- custos_reactive() %>% group_by(uf,ndd) %>% summarise(custo = sum(custo))
+  
+ valueBox( reais(sum(teste %>% filter( if_else( input$uf == "TODOS", uf != "TODOS" , uf == input$uf))  )),
+  color = "red")
+  })
+```
+
+### Principal PI
+
+
+
+```{r}
+
+renderValueBox({
+ valueBox( reais(sum(custo_apoio_reactive()$custo_pessoal)),
+  color = "red")
+  })
+```
+
+### Principal Centro de
+
+
+
+```{r}
+
+renderValueBox({
+ valueBox( (sum(custo_apoio_reactive()$custeio)+ sum(custo_apoio_reactive()$custo_pessoal))/(sum(custo_cliente_reactive()$custeio)+ sum(custo_cliente_reactive()$custo_pessoal))*100,
+           color = "red")
+  })
+```
+
+
+
+
+
+
+
+Row 
+-----------------------------------------------------------------------
+
+
+### custeio das unidades descentralizadas
+
+
+
+```{r}
+renderPlotly( ggplot(custo_apoio   , aes(x = reorder (uf,-custeio), y = custeio))+ coord_flip() + 
+    geom_col(fill = if_else(custo_total$uf == input$uf, "red", "gray"))+ theme_classic()
+    + theme(axis.title.x = element_blank(),
+          axis.title.y = element_blank()))
+```
+
+
+
+### custeio das unidades descentralizadas
+
+
+```{r}
+renderPlotly( ggplot(custo_apoio   , aes(x = reorder (uf,-custeio), y = custeio))+ coord_flip() + 
+    geom_col(fill = if_else(custo_total$uf == input$uf, "red", "gray"))+ theme_classic()
+    + theme(axis.title.x = element_blank(),
+          axis.title.y = element_blank()))
+```
+
+
+### custo com pessoal das unidades descentralizadas
+
+
+
+```{r}
+renderPlotly( ggplot(custo_apoio   , aes(x = reorder (uf,-custo_pessoal), y = custo_pessoal))+ coord_flip() + 
+    geom_col(fill = if_else(custo_total$uf == input$uf, "red", "gray"))+ theme_classic()
+    + theme(axis.title.x = element_blank(),
+          axis.title.y = element_blank()))
+```
+
+
+
+### Ranking comissao (custo total dos clientes / custo total das unidades descentralizadas)
+
+
+```{r}
+renderPlotly({
+   ggplot(custo_total   , aes(x = reorder (uf,-percentual), y = percentual))+ coord_flip() + 
+   geom_col(fill = if_else(custo_total$uf == input$uf, "red", "gray"))+ theme_classic() +
+    theme(axis.title.x = element_blank(),
+          axis.title.y = element_blank())
+   }) 
+```
 
 
 Custo de Pessoal
