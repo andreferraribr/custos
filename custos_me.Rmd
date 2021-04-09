@@ -84,7 +84,7 @@ tabela = function (df,coluna = NULL) {
                       text = "Download" ) ),
                   lengthMenu = list( c(-1, 5, 10,20),
                                      c( "tudo",5, 10, 20)),
-                  pageLength = -1 )
+                  pageLength = 20 )
       )%>%
   formatRound(
   # formatar apenas as colunas numericas.
@@ -116,7 +116,7 @@ tabela_reais = function (df,coluna = NULL) {
                       text = "Download" ) ),
                   lengthMenu = list( c(-1, 5, 10,20),
                                      c( "tudo",5, 10, 20)),
-                  pageLength = -1 )
+                  pageLength = 20 )
       )%>%
   formatRound(
   # formatar apenas as colunas numericas.
@@ -307,7 +307,7 @@ renderValueBox({
 
 renderValueBox({
  valueBox( reais(sum(custo_apoio_reactive()$custeio)),
-  color = "purple")
+  color = "red")
   })
 ```
 
@@ -319,7 +319,7 @@ renderValueBox({
 
 renderValueBox({
  valueBox( reais(sum(custo_apoio_reactive()$custo_pessoal)),
-  color = "#f242f5")
+  color = "red")
   })
 ```
 
@@ -331,7 +331,7 @@ renderValueBox({
 
 renderValueBox({
  valueBox( (sum(custo_apoio_reactive()$custeio)+ sum(custo_apoio_reactive()$custo_pessoal))/(sum(custo_cliente_reactive()$custeio)+ sum(custo_cliente_reactive()$custo_pessoal))*100,
-           color = "gray")
+           color = "red")
   })
 ```
 
@@ -351,7 +351,8 @@ Row
 
 ```{r}
 renderPlotly( ggplot(custo_cliente   , aes(x = reorder (uf,-custo_pessoal), y = custo_pessoal))+ coord_flip() + 
-    geom_col(color = if_else(custo_cliente$uf == input$uf, "red", "grey")))
+    geom_col(fill = if_else(custo_total$uf == input$uf, "red", "gray"))+ theme_classic()
+    )
 ```
 
 
@@ -361,7 +362,9 @@ renderPlotly( ggplot(custo_cliente   , aes(x = reorder (uf,-custo_pessoal), y = 
 
 ```{r}
 renderPlotly( ggplot(custo_cliente   , aes(x = reorder (uf,-custeio), y = custeio))+ coord_flip() + 
-    geom_col(color = if_else(custo_cliente$uf == input$uf, "red", "grey")))
+    geom_col(fill = if_else(custo_total$uf == input$uf, "red", "gray"))+ theme_classic()
+    + theme(axis.title.x = element_blank(),
+          axis.title.y = element_blank()))
 ```
 
 
@@ -371,7 +374,9 @@ renderPlotly( ggplot(custo_cliente   , aes(x = reorder (uf,-custeio), y = custei
 
 ```{r}
 renderPlotly( ggplot(custo_cliente   , aes(x = reorder (uf,-custo_pessoal), y = custo_pessoal))+ coord_flip() + 
-    geom_col(color = if_else(custo_cliente$uf == input$uf, "red", "grey")))
+    geom_col(fill = if_else(custo_total$uf == input$uf, "red", "gray"))+ theme_classic()
+    + theme(axis.title.x = element_blank(),
+          axis.title.y = element_blank()))
 ```
 
 
@@ -380,6 +385,42 @@ renderPlotly( ggplot(custo_cliente   , aes(x = reorder (uf,-custo_pessoal), y = 
 
 
 ```{r}
-renderPlotly( ggplot(custo_total   , aes(x = reorder (uf,-percentual), y = percentual))+ coord_flip() + 
-    geom_col(color = if_else(custo_cliente$uf == input$uf, "red", "grey")))
+renderPlotly({
+   ggplot(custo_total   , aes(x = reorder (uf,-percentual), y = percentual))+ coord_flip() + 
+   geom_col(fill = if_else(custo_total$uf == input$uf, "red", "gray"))+ theme_classic() +
+    theme(axis.title.x = element_blank(),
+          axis.title.y = element_blank())
+   }) 
+```
+
+
+
+Custeio
+=============================================
+
+```{r}
+renderDT(tabela(custo_apoio))
+```
+
+
+
+Custo de Pessoal
+=============================================
+
+
+
+Tabelas
+=============================================
+
+Column {.tabset}
+-------------------------------------
+### custeio
+```{r}
+renderDT(tabela(custos))
+```
+
+
+### custo de pessoal
+```{r}
+renderDT(tabela(pessoal))
 ```
