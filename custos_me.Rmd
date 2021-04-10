@@ -157,10 +157,6 @@ pessoal <- pessoal %>%  mutate (uf = str_sub(pessoal$UPAG, start = -2L, end=-1L)
 
 custo_pessoal <- (pessoal %>% group_by(uf,  tipo_org) %>% summarise(custo_pessoal  =  (sum(`Custo Pessoal - Ativo`)/1000)))
 
-# 
-# tabela(pessoal %>% group_by(uf, UPAG, tipo_org) %>% summarise(custo_pessoal  =  (sum(`Custo Pessoal - Ativo`)/1000), pessoal =  format(round(sum(`Força de Trabalho`)/12), nsmall = 0)))
-# 
-# tabela(pessoal %>% group_by(uf, tipo_org) %>% filter(uf %!in% c("AC","RR","RO","AP", "DF"))%>% summarise(custo_pessoal  =  (sum(`Custo Pessoal - Ativo`)/1000))%>% pivot_wider( names_from = tipo_org, values_from = custo_pessoal) %>% mutate(percentual = apoio/cliente ))
 
 ```
 
@@ -206,21 +202,16 @@ custos <- custos %>%  mutate(uf =
 )
 
 
+
+
+
+```
+```{r}
 custos <- custos %>% mutate(tipo_org =ifelse( ugr_id %in% ugr_descentralizadas$ugr_id, "apoio","cliente"))
 
 custos_reactive <- reactive(custos %>% filter(tipo_org == "apoio") %>% group_by(pi, ndd, centro_custo, uf) %>% summarise(custo = sum (custo)))
 
 custeio <- (custos %>% group_by(uf, tipo_org)  %>% summarise(custeio  =  (sum(custo)/1000)))
-
-# tg <- (custos %>% group_by(uf, tipo_org, ug_emitente_id)  %>% filter(uf %!in% c("AC","RR","RO","AP", "DF", "na"))%>% summarise(custeio  =  (sum(custo)/1000)))
-# tabela(custos %>% group_by(uf, tipo_org) %>% filter (uf != "na",uf %!in% c("AC","RR","RO","AP", "DF") )%>% summarise(custo_apoios  =  (sum(custo)/1000))%>% pivot_wider( names_from = tipo_org, values_from = custo_apoios)  %>% mutate(percentual = apoio/cliente ))
-
-# tabela(custos %>% group_by(uf,ug_emitente, tipo_org,centro_custo ,ndd) %>% filter (uf != "na")%>% summarise(custo_apoios  =  (sum(custo)/1000)))
-
-```
-```{r}
-
-
 
 
 custo_apoio <- full_join(custeio %>% filter(tipo_org == "apoio"), custo_pessoal %>% filter(tipo_org == "apoio"), by = c("uf" = "uf",  "tipo_org" = "tipo_org"))
@@ -235,29 +226,9 @@ custo_cliente_reactive <- reactive(custo_cliente %>% filter(if_else( input$uf ==
 custo_total <- full_join(custeio, custo_pessoal, by = c("uf" = "uf",  "tipo_org" = "tipo_org"))
 custo_total <-  (custo_total %>% group_by(uf, tipo_org) %>% summarise(custo_total  =  (sum(custo_pessoal+ custeio)))%>% pivot_wider( names_from = tipo_org, values_from = custo_total)  %>% mutate(percentual = apoio/cliente )) 
 
-
-
+custo_total_reactive <- reactive(custo_total %>% filter( if_else( input$uf == "TODOS", uf != "TODOS" , uf == input$uf)))
 ```
-```{r}
-# ggplot(custo_total %>% filter(tipo_org == "apoio") %>% pivot_longer(cols = c(custo_pessoal, custeio),names_to = "tipo_custo",values_to = "custo"), aes(x = uf, y = custo ,fill = tipo_custo)) + coord_flip()+
-    # geom_bar(position = "fill",stat = "identity")
 
-
-
-
-# tabela(custo_total %>% pivot_longer(cols = c(custo_pessoal, custeio),names_to = "tipo custo",values_to = "custo"))
-```
-```{r}
-# ggplot(custo_total %>% filter(tipo_org == "apoio") , aes(x = custo_pessoal, y = custeio)) + 
-#     geom_point()
-```
-```{r eval=FALSE, include=FALSE}
-
-# t_p <- (custo_total %>% group_by(uf, tipo_org) %>% summarise(custo_total  =  (sum(custo_pessoal+ custeio)))%>% pivot_wider( names_from = tipo_org, values_from = custo_total)  %>% mutate(percentual = apoio/cliente ))
-# 
-# ggplot(t_p   , aes(x = reorder (uf,-percentual), y = percentual))+ coord_flip() + 
-#     geom_col()
-```
 
 Sidebar {.sidebar}
 =====================================
@@ -270,7 +241,7 @@ selectInput("uf", label = h3("escolha o Estado:"),
     selected = "TODOS")
 
 
-custo_total_reactive <- reactive(custo_total %>% filter( if_else( input$uf == "TODOS", uf != "TODOS" , uf == input$uf)))
+
 
 ```
 
@@ -278,17 +249,10 @@ Unidades Descentralizadas
 =============================================
 
 
-
-
-
-
 Row 
 -----------------------------------------------------------------------
 
-
-
 ### Custo total
-
 
 
 ```{r}
@@ -299,10 +263,7 @@ renderValueBox({
   })
 ```
 
-
-
 ### Custeio
-
 
 
 ```{r}
@@ -312,7 +273,6 @@ renderValueBox({
   color = "red")
   })
 ```
-
 ### Custo com Pessoal
 
 
@@ -328,7 +288,6 @@ renderValueBox({
 ### Comissão
 
 
-
 ```{r}
 
 renderValueBox({
@@ -336,11 +295,6 @@ renderValueBox({
            color = "red")
   })
 ```
-
-
-
-
-
 
 
 Row 
@@ -358,8 +312,6 @@ renderPlotly( ggplot(custo_cliente    , aes(x = reorder (uf,-(custeio+custo_pess
           axis.title.y = element_blank()))
 ```
 
-
-
 ### custeio das unidades descentralizadas
 
 
@@ -369,7 +321,6 @@ renderPlotly( ggplot(custo_apoio   , aes(x = reorder (uf,-custeio), y = custeio)
     + theme(axis.title.x = element_blank(),
           axis.title.y = element_blank()))
 ```
-
 
 ### custo com pessoal das unidades descentralizadas
 
