@@ -207,13 +207,13 @@ custos <- custos %>%  mutate(uf =
 
 ```
 ```{r}
-custos <- custos %>% mutate(tipo_org =ifelse( ugr_id %in% ugr_descentralizadas$ugr_id, "apoio","cliente"))
+custos <- custos %>% mutate(tipo_org =ifelse( ugr_id %in% ugr_descentralizadas$ugr_id & endsWith (pi_id, "UNIDES")& pi_id %!in% c( "S6403UNIDES","COVIDUNIDES" ), "apoio","cliente"))
 
 custos_reactive <- reactive(custos %>% filter(tipo_org == "apoio") %>% group_by(pi, ndd, centro_custo, uf) %>% summarise(custo = sum (custo)))
 
 custeio <- (custos %>% group_by(uf, tipo_org)  %>% summarise(custeio  =  (sum(custo)/1000)))
 
-
+pis <- (custos %>% filter(ugr_id %in% ugr_descentralizadas$ugr_id ,endsWith (pi_id, "UNIDES"), pi_id %!in% c( "S6403UNIDES","COVIDUNIDES" )) %>% group_by(pi_id) %>% summarise(custo = sum(custo)))
 custo_apoio <- full_join(custeio %>% filter(tipo_org == "apoio"), custo_pessoal %>% filter(tipo_org == "apoio"), by = c("uf" = "uf",  "tipo_org" = "tipo_org"))
 
 custo_cliente <- full_join(custeio %>% filter(tipo_org == "cliente"), custo_pessoal %>% filter(tipo_org == "cliente"), by = c("uf" = "uf",  "tipo_org" = "tipo_org"))
@@ -263,6 +263,8 @@ renderValueBox({
   })
 ```
 
+
+
 ### Custeio
 
 
@@ -273,6 +275,8 @@ renderValueBox({
   color = "red")
   })
 ```
+
+
 ### Custo com Pessoal
 
 
