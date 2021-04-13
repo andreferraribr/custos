@@ -163,6 +163,9 @@ custo_pessoal <- (pessoal %>% group_by(uf,  tipo_org) %>% summarise(custo_pessoa
 
 ```{r}
 
+
+nomenclatura <- read_excel("custeio_administrativo.xlsx")
+
 custos <- read_excel("custos.xlsx")
 
 nomes_atributos <-  read_excel("tg2r_custos_me.xlsx")
@@ -207,26 +210,49 @@ custos <- custos %>%  mutate(uf =
 
 ```
 ```{r}
+
+# criar atrituto tipo_org para diferenciar as unidades descentralizadas das unidades clientes. Utilizar a informação da UGr e o Código do PI para fazer a diferenciação
 custos <- custos %>% mutate(tipo_org =ifelse( ugr_id %in% ugr_descentralizadas$ugr_id & endsWith (pi_id, "UNIDES")& pi_id %!in% c( "S6403UNIDES","COVIDUNIDES" ), "apoio","cliente"))
 
-custos_reactive <- reactive(custos %>% filter(tipo_org == "apoio") %>% group_by(pi, ndd, centro_custo, uf) %>% summarise(custo = sum (custo)))
+nomenclatura <- nomenclatura %>% filter(ndd_id %in% unique(custos$ndd_id)) %>% group_by(ndd_id, sub_tipo_custeio) %>% summarise(count = (ndd_id))
 
+custeio_adm<- left_join (nomenclatura , custos, by = c("ndd_id" = "ndd_id"))
+
+custeio_adm_reactive <- reactive(custeio_adm %>% group_by(uf, tipo_org, sub_tipo_custeio) %>% summarise(custo = sum(custo)) %>% pivot_wider( names_from = tipo_org, values_from = custo)  %>% mutate_all(replace_na, 0))
+
+ # pis <- (custos %>% filter(ugr_id %in% ugr_descentralizadas$ugr_id ,endsWith (pi_id, "UNIDES"), pi_id %!in% c( "S6403UNIDES","COVIDUNIDES" )) %>% group_by(pi,pi_id, ndd, ndd_id) %>% summarise(custo = sum(custo)))
+ 
+ # colnames(pis) <- c("pi_chave", "pi_chave_id", "ndd","ndd_id" ,"custos")
+ 
+ # custos_pi_chave <- left_join(pis, custos %>% group_by(), by = c("ndd_id" = "ndd_id")) 
+ 
+
+
+# criar a data frame custeio para ser mesclada à df de custo de pessoal a partir da das chaves UF e tipo_org
 custeio <- (custos %>% group_by(uf, tipo_org)  %>% summarise(custeio  =  (sum(custo)/1000)))
 
-pis <- (custos %>% filter(ugr_id %in% ugr_descentralizadas$ugr_id ,endsWith (pi_id, "UNIDES"), pi_id %!in% c( "S6403UNIDES","COVIDUNIDES" )) %>% group_by(pi_id) %>% summarise(custo = sum(custo)))
+
+
+# mesclar os dados de custeio e custo de pessoal para criar df com os custos das unidades descentralizadas (apoio)
 custo_apoio <- full_join(custeio %>% filter(tipo_org == "apoio"), custo_pessoal %>% filter(tipo_org == "apoio"), by = c("uf" = "uf",  "tipo_org" = "tipo_org"))
 
+# mesclar os dados de custeio e custo de pessoal para criar df com os custos dos clientes
 custo_cliente <- full_join(custeio %>% filter(tipo_org == "cliente"), custo_pessoal %>% filter(tipo_org == "cliente"), by = c("uf" = "uf",  "tipo_org" = "tipo_org"))
 
+# criar a função reactive para os custos das unidades de apoio
 custo_apoio_reactive <- reactive(custo_apoio %>% filter(if_else( input$uf == "TODOS", uf != "TODOS" , uf == input$uf)))
 
+# criar a função reactive para os custos dos clientes
 custo_cliente_reactive <- reactive(custo_cliente %>% filter(if_else( input$uf == "TODOS", uf != "TODOS" , uf == input$uf)))
+
 
 
 custo_total <- full_join(custeio, custo_pessoal, by = c("uf" = "uf",  "tipo_org" = "tipo_org"))
 custo_total <-  (custo_total %>% group_by(uf, tipo_org) %>% summarise(custo_total  =  (sum(custo_pessoal+ custeio)))%>% pivot_wider( names_from = tipo_org, values_from = custo_total)  %>% mutate(percentual = apoio/cliente )) 
 
-custo_total_reactive <- reactive(custo_total %>% filter( if_else( input$uf == "TODOS", uf != "TODOS" , uf == input$uf)))
+
+ 
+
 ```
 
 
@@ -241,6 +267,9 @@ selectInput("uf", label = h3("escolha o Estado:"),
     selected = "TODOS")
 
 
+filtro_reactive <- reactive(if_else(input$uf!= "TODOS", input$uf,unique(custo_total$uf) ))
+
+pickerInput("ufs","ufs", unique(custo_total$uf), selected =unique(custo_total$uf) , options = list(`actions-box` = TRUE),multiple = T)
 
 
 ```
@@ -295,8 +324,12 @@ renderValueBox({
 ```{r}
 
 renderValueBox({
- valueBox( (sum(custo_apoio_reactive()$custeio)+ sum(custo_apoio_reactive()$custo_pessoal))/(sum(custo_cliente_reactive()$custeio)+ sum(custo_cliente_reactive()$custo_pessoal))*100,
-           color = "red")
+ # valueBox( (sum(custo_apoio_reactive()$custeio)+ sum(custo_apoio_reactive()$custo_pessoal))/(sum(custo_cliente_reactive()$custeio)+ sum(custo_cliente_reactive()$custo_pessoal))*100,
+ #           color = "red")
+  
+ valueBox( custos %>% filter(uf %in% input$ufs) %>% summarise(custo = sum(custo)),
+           color = "red")  
+  
   })
 ```
 
@@ -383,11 +416,11 @@ renderValueBox({
 
 ```{r}
 
-renderValueBox({
+renderValueBox({ 
   
-  teste <- custos_reactive() %>% group_by(uf,ndd) %>% summarise(custo = sum(custo))
-  
- valueBox( reais(sum(teste %>% filter( if_else( input$uf == "TODOS", uf != "TODOS" , uf == input$uf))  )),
+    t
+   value <- custeio_adm_reactive() %>% filter (uf %in% input$ufs) %>% group_by(sub_tipo_custeio) %>% summarise(apoio = sum(apoio))
+  valueBox( sum(value$apoio),
   color = "red")
   })
 ```
