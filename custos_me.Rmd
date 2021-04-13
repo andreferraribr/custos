@@ -476,8 +476,9 @@ renderPlotly( ggplot(custo_apoio   , aes(x = reorder (uf,-custeio), y = custeio)
 
 
 ```{r}
-renderPlotly( ggplot(custo_apoio   , aes(x = reorder (uf,-custeio), y = custeio))+ coord_flip() + 
-    geom_col(fill = if_else(custo_total$uf == input$uf, "red", "gray"))+ theme_classic()
+renderPlotly( ggplot(custeio_adm%>% filter (uf %in% input$ufs) %>% group_by(sub_tipo_custeio) %>% summarise(custeio = sum(custo))  , aes(x = reorder (sub_tipo_custeio,custeio), y = custeio))+ coord_flip() + 
+                geom_col()+
+    theme_classic()
     + theme(axis.title.x = element_blank(),
           axis.title.y = element_blank()))
 ```
