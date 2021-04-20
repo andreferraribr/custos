@@ -40,7 +40,7 @@ library(janitor)
 library(googledrive)
 library(gargle)
 library(writexl)
-
+library(forcats)
 ```
 
 
@@ -147,6 +147,8 @@ reais <- function(numero){
 
 
 pessoal <- read_excel("r_pessoal_ME_cargo.xlsx")
+
+pessoal<- pessoal %>% mutate(ocupacao = if_else(Cargo == "S/CARGO", `Situação Funcional`, Cargo))
 
 uorgs_descentralizadas <- read_excel("uorgs_descentralizadas.xlsx")
 
@@ -261,27 +263,10 @@ Sidebar {.sidebar}
 
 
 ```{r, input$uf}
-# input para selecionar a UF
-selectInput("uf", label = h3("escolha o Estado:"),
-    choices = c (unique(custo_total$uf), "TODOS"),
-    selected = "TODOS")
-
-
-filtro_reactive <- reactive(if_else(input$uf!= "TODOS", input$uf,unique(custo_total$uf) ))
 
 pickerInput("ufs","ufs", unique(custo_total$uf), selected =unique(custo_total$uf) , options = list(`actions-box` = TRUE),multiple = T)
 
-renderValueBox({
-  
-value_custeio <- custos %>% filter(tipo_org == "apoio")  %>% group_by(uf) %>% summarise(custeio = sum(custo))
 
-value_custeio <- value_custeio %>% filter(uf  %in% input$ufs) %>% summarise(custeio = sum(custeio))
-
-
-
- valueBox( reais(sum(value_custeio$custeio)),
-  color = "red")
-  })
 
 
 ```
@@ -437,7 +422,7 @@ Row
 
 renderValueBox({ 
   
-    t
+    
    value <- custeio_adm_reactive() %>% filter (uf %in% input$ufs) %>% group_by(sub_tipo_custeio) %>% summarise(apoio = sum(apoio))
   valueBox( sum(value$apoio),
   color = "red")
@@ -457,8 +442,48 @@ Row
 
 
 ```{r}
-renderPlotly( ggplot(custeio_adm%>% filter (uf %in% input$ufs) %>% group_by(sub_tipo_custeio) %>% summarise(custeio = sum(custo))  , aes(x = reorder (sub_tipo_custeio,custeio), y = custeio))+ coord_flip() + 
-                geom_col()+
+renderPlotly({
+  
+ value<- custeio_adm%>% filter (uf %in% input$ufs) %>% group_by(sub_tipo_custeio, tipo_org) %>% summarise(custeio = sum(custo))%>% mutate_all(replace_na, 0)
+ 
+ 
+ 
+ ordem<-custeio_adm%>% filter (uf %in% input$ufs) %>% group_by(sub_tipo_custeio, tipo_org) %>% summarise(custeio = sum(custo)) %>% pivot_wider(names_from = tipo_org, values_from = custeio) %>% mutate(total = cliente + apoio)%>% mutate_all(replace_na, 0)
+ 
+ 
+ value<- value %>%   mutate(teste= fct_reorder(sub_tipo_custeio, custeio))
+value %>%   mutate(teste= fct_reorder(sub_tipo_custeio, custeio)) %>% 
+   ggplot( aes(x = teste, y = custeio))+            coord_flip() + 
+    geom_col(aes(fill=tipo_org))+
+    theme_classic()+
+    theme(axis.title.x = element_blank(),
+          axis.title.y = element_blank())
+  
+  
+  
+  })
+```
+
+
+```{r eval=FALSE, include=FALSE}
+renderPlotly(
+  
+  
+  
+  ggplot(custeio_adm%>% filter (uf %in% input$ufs) %>% group_by(sub_tipo_custeio, tipo_org) %>% summarise(custeio = sum(custo))  , aes(x = reorder (sub_tipo_custeio,custeio), y = custeio))+ coord_flip() + 
+                geom_col(aes(fill=tipo_org))+
+    theme_classic()
+    + theme(axis.title.x = element_blank(),
+          axis.title.y = element_blank())
+  
+  )
+```
+
+### teste
+
+```{r}
+renderPlotly( ggplot(custeio_adm%>% filter (uf %in% input$ufs) %>% group_by( tipo_org, sub_tipo_custeio) %>% summarise(custeio = sum(custo))  , aes(x = reorder (sub_tipo_custeio,custeio), y = custeio))+ coord_flip() + 
+                geom_col(aes(fill=tipo_org), position = "fill")+
     theme_classic()
     + theme(axis.title.x = element_blank(),
           axis.title.y = element_blank()))
@@ -466,11 +491,38 @@ renderPlotly( ggplot(custeio_adm%>% filter (uf %in% input$ufs) %>% group_by(sub_
 
 
 
-
 Custo de Pessoal
 =============================================
 
+### pessoal
 
+```{r}
+renderPlotly(
+  
+  
+  
+  ggplot(pessoal%>% filter (uf %in% input$ufs, tipo_org == "apoio",  `Grupo Situação Vínculo` == "ATIVO") %>% group_by( ocupacao) %>% summarise(custo_pessoal = sum(`Custo Pessoal - Ativo`), forca_trabalho = sum(`Força de Trabalho`))  , aes(x = custo_pessoal, y = forca_trabalho)) + 
+                geom_point(aes(colour = factor(ocupacao)))+
+    theme_classic()
+    + theme(axis.title.x = element_blank(),
+          axis.title.y = element_blank(),
+          legend.position = "none")
+  
+  )
+
+```
+
+### tabela cargo
+
+
+```{r}
+
+
+renderDataTable(
+tabela(pessoal %>%  filter (uf %in% input$ufs, tipo_org == "apoio", `Grupo Situação Vínculo` == "ATIVO") %>% group_by( ocupacao) %>% summarise(custo_pessoal = sum(`Custo Pessoal - Ativo`), forca_trabalho = sum(`Força de Trabalho`)))
+
+)
+```
 
 Tabelas
 =============================================
