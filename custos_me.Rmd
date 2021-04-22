@@ -338,7 +338,7 @@ renderValueBox({
   
   v2 <- sum(custo_cliente_reactive()$custo_pessoal)+sum(custo_cliente_reactive()$custeio)
   
- valueBox( value/v2*100,
+ valueBox( paste0(round(value/v2*100,digits = 1), "%"),
            color = "red")  
   
   })
@@ -358,8 +358,9 @@ renderPlotly(
   
 
     
-ggplot(custo_apoio   , aes(x = reorder (uf,-(custeio+custo_pessoal)), y = (custeio+custo_pessoal)))+ coord_flip() + 
-    geom_col(fill = if_else(custo_total$uf %in% input$ufs, "red", "gray"))+ theme_classic()
+ggplot(custo_apoio   , aes(x = reorder (uf,-(custeio+custo_pessoal)), y = (custeio+custo_pessoal), label= reais(custeio+custo_pessoal)))+ coord_flip() + 
+    geom_col(fill = if_else(custo_total$uf %in% input$ufs, "red", "gray"))+ theme_classic()+
+    geom_text()
     + theme(axis.title.x = element_blank(),
           axis.title.y = element_blank()))
 ```
@@ -368,9 +369,10 @@ ggplot(custo_apoio   , aes(x = reorder (uf,-(custeio+custo_pessoal)), y = (custe
 
 
 ```{r}
-renderPlotly( ggplot(custo_apoio   , aes(x = reorder (uf,-custeio), y = custeio))+ coord_flip() + 
-    geom_col(fill = if_else(custo_total$uf %in% input$ufs, "red", "gray"))+ theme_classic()
-    + theme(axis.title.x = element_blank(),
+renderPlotly( ggplot(custo_apoio   , aes(x = reorder (uf,-custeio), y = (custeio),label = reais(custeio)))+ coord_flip() + 
+    geom_col(fill = if_else(custo_total$uf %in% input$ufs, "red", "gray"))+ theme_classic()+
+      geom_text()+
+      theme(axis.title.x = element_blank(),
           axis.title.y = element_blank()))
 ```
 
@@ -379,21 +381,25 @@ renderPlotly( ggplot(custo_apoio   , aes(x = reorder (uf,-custeio), y = custeio)
 
 
 ```{r}
-renderPlotly( ggplot(custo_apoio   , aes(x = reorder (uf,-custo_pessoal), y = custo_pessoal))+ coord_flip() + 
-    geom_col(fill = if_else(custo_total$uf %in% input$ufs, "red", "gray"))+ theme_classic()
-    + theme(axis.title.x = element_blank(),
+renderPlotly( ggplot(custo_apoio   , aes(x = reorder (uf,-custo_pessoal), y = custo_pessoal, label = reais(custo_pessoal)))+ coord_flip() + 
+    geom_col(fill = if_else(custo_total$uf %in% input$ufs, "red", "gray"))+ theme_classic()+
+      geom_text()    +
+      theme(axis.title.x = element_blank(),
           axis.title.y = element_blank()))
 ```
 
 
 
-### Ranking comissao (custo total dos clientes / custo total das unidades descentralizadas)
+### Ranking comissão
 
 
 ```{r}
 renderPlotly({
-   ggplot(custo_total   , aes(x = reorder (uf,-percentual), y = percentual))+ coord_flip() + 
-   geom_col(fill = if_else(custo_total$uf %in% input$ufs, "red", "gray"))+ theme_classic() +
+   ggplot(custo_total   , aes(x = reorder (uf,-percentual), y = percentual, label =paste0(round(percentual*100,digits = 1), "%")))+ coord_flip() + 
+   geom_col(fill = if_else(custo_total$uf %in% input$ufs, "red", "gray"))+ theme_classic()+ 
+    geom_text()+                                  
+    # Change y-axis to percent
+  scale_y_continuous(labels = scales::percent)  +
     theme(axis.title.x = element_blank(),
           axis.title.y = element_blank())
    }) 
@@ -438,10 +444,10 @@ Row
 
 
 
-### custeio das unidades descentralizadas
+### custeio administrativo total (cliente + apoio)
 
 
-```{r}
+```{r eval=FALSE, include=FALSE}
 renderPlotly({
   
  value<- custeio_adm%>% filter (uf %in% input$ufs) %>% group_by(sub_tipo_custeio, tipo_org) %>% summarise(custeio = sum(custo))%>% mutate_all(replace_na, 0)
@@ -465,28 +471,38 @@ value %>%   mutate(teste= fct_reorder(sub_tipo_custeio, custeio)) %>%
 ```
 
 
-```{r eval=FALSE, include=FALSE}
+```{r}
 renderPlotly(
   
   
   
-  ggplot(custeio_adm%>% filter (uf %in% input$ufs) %>% group_by(sub_tipo_custeio, tipo_org) %>% summarise(custeio = sum(custo))  , aes(x = reorder (sub_tipo_custeio,custeio), y = custeio))+ coord_flip() + 
+  ggplot(custeio_adm%>% filter (uf %in% input$ufs) %>% group_by(sub_tipo_custeio, tipo_org) %>% summarise(custeio = sum(custo))  , aes(x = reorder (sub_tipo_custeio,custeio), y = (custeio)))+ coord_flip() + 
                 geom_col(aes(fill=tipo_org))+
     theme_classic()
     + theme(axis.title.x = element_blank(),
-          axis.title.y = element_blank())
+          axis.title.y = element_blank(), 
+          legend.title = element_blank())
   
   )
 ```
 
-### teste
+### composição do custo
 
 ```{r}
-renderPlotly( ggplot(custeio_adm%>% filter (uf %in% input$ufs) %>% group_by( tipo_org, sub_tipo_custeio) %>% summarise(custeio = sum(custo))  , aes(x = reorder (sub_tipo_custeio,custeio), y = custeio))+ coord_flip() + 
-                geom_col(aes(fill=tipo_org), position = "fill")+
-    theme_classic()
-    + theme(axis.title.x = element_blank(),
-          axis.title.y = element_blank()))
+renderPlotly( 
+  ggplot(custeio_adm%>% filter (uf %in% input$ufs) %>% group_by( tipo_org, sub_tipo_custeio) %>% summarise(custeio = sum(custo))  , aes(x = reorder (sub_tipo_custeio,custeio), y = custeio))+ coord_flip() + 
+                geom_col(aes(fill=tipo_org), position = "fill")+                                  
+    # Change y-axis to percent
+  scale_y_continuous(labels = scales::percent)+
+    theme_classic()    +
+    theme(
+          
+          axis.title.x = element_blank(),
+          axis.title.y = element_blank(),
+          legend.title = element_blank()  ) 
+    
+    
+    )
 ```
 
 
@@ -503,7 +519,7 @@ renderPlotly(
   
   ggplot(pessoal%>% filter (uf %in% input$ufs, tipo_org == "apoio",  `Grupo Situação Vínculo` == "ATIVO") %>% group_by( ocupacao) %>% summarise(custo_pessoal = sum(`Custo Pessoal - Ativo`), forca_trabalho = sum(`Força de Trabalho`))  , aes(x = custo_pessoal, y = forca_trabalho)) + 
                 geom_point(aes(colour = factor(ocupacao)))+
-    theme_classic()
+  theme_classic()
     + theme(axis.title.x = element_blank(),
           axis.title.y = element_blank(),
           legend.position = "none")
@@ -519,7 +535,7 @@ renderPlotly(
 
 
 renderDataTable(
-tabela(pessoal %>%  filter (uf %in% input$ufs, tipo_org == "apoio", `Grupo Situação Vínculo` == "ATIVO") %>% group_by( ocupacao) %>% summarise(custo_pessoal = sum(`Custo Pessoal - Ativo`), forca_trabalho = sum(`Força de Trabalho`)))
+tabela(pessoal %>%  filter (uf %in% input$ufs, tipo_org == "apoio", `Grupo Situação Vínculo` == "ATIVO") %>% group_by( ocupacao) %>% summarise(custo_pessoal = sum(`Custo Pessoal - Ativo`), forca_trabalho = sum(`Força de Trabalho`)) )
 
 )
 ```
