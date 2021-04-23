@@ -133,17 +133,50 @@ tabela_reais = function (df,coluna = NULL) {
 ```
 
 
+```{r funcao grafico, eval=FALSE, include=FALSE}
+
+grafico<- function(dados, xaxis, yaxis ){
+  
+  ggplot(dados   , aes(x = reorder (xaxis,-yaxis), y = yaxis, label = yaxis))+coord_flip()+ 
+    geom_col(fill = if_else(custo_total$uf %in% input$ufs, "red", "gray"))+
+    theme_classic()+ 
+    geom_text()+                                  
+    theme(axis.title.x = element_blank(),
+          axis.title.y = element_blank())
+
+
+  
+}
+  
+  
+  
+  
+  
+  
+  
+     ggplot(custo_total   , aes(x = reorder (uf,-percentual), y = percentual, label =paste0(round(percentual*100,digits = 1), "%")))+ coord_flip() + 
+   geom_col(fill = if_else(custo_total$uf %in% input$ufs, "red", "gray"))+ theme_classic()+ 
+    geom_text()+                                  
+    # Change y-axis to percent
+  scale_y_continuous(labels = scales::percent)  +
+    theme(axis.title.x = element_blank(),
+          axis.title.y = element_blank())
+
+
+```
+
+
 
 ```{r função "reais" para embelezar numeros}
 # embelezar o número do value box
 reais <- function(numero){
-  paste0("R$ ",round(numero/1000,digits = 1), " K")
+  paste0(round(numero/1000000,digits = 1))
 }
 ```
 
 
 
-```{r}
+```{r custo de pessoal}
 
 
 pessoal <- read_excel("r_pessoal_ME_cargo.xlsx")
@@ -152,18 +185,20 @@ pessoal<- pessoal %>% mutate(ocupacao = if_else(Cargo == "S/CARGO", `Situação 
 
 uorgs_descentralizadas <- read_excel("uorgs_descentralizadas.xlsx")
 
+# write_xlsx(uorgs_descentralizadas, "uorgs_descentralizadas.xlsx")
+
 pessoal <- pessoal %>%  mutate (tipo_org = if_else(`UORG Código` %in% uorgs_descentralizadas$`UORG Código`, "apoio", "cliente"))
 
 pessoal <- pessoal %>%  mutate (uf = str_sub(pessoal$UPAG, start = -2L, end=-1L))
 
 
-custo_pessoal <- (pessoal %>% group_by(uf,  tipo_org) %>% summarise(custo_pessoal  =  (sum(`Custo Pessoal - Ativo`)/1000)))
+custo_pessoal <- (pessoal %>% group_by(uf,  tipo_org) %>% summarise(custo_pessoal  =  (sum(`Custo Pessoal - Ativo`))))
 
 
 ```
 
 
-```{r}
+```{r custeio}
 
 
 nomenclatura <- read_excel("custeio_administrativo.xlsx")
@@ -211,7 +246,7 @@ custos <- custos %>%  mutate(uf =
 
 
 ```
-```{r}
+```{r custeio reactive}
 
 # criar atrituto tipo_org para diferenciar as unidades descentralizadas das unidades clientes. Utilizar a informação da UGr e o Código do PI para fazer a diferenciação
 custos <- custos %>% mutate(tipo_org =ifelse( ugr_id %in% ugr_descentralizadas$ugr_id & endsWith (pi_id, "UNIDES")& pi_id %!in% c( "S6403UNIDES","COVIDUNIDES" ), "apoio","cliente"))
@@ -231,7 +266,7 @@ custeio_adm_reactive <- reactive(custeio_adm %>% group_by(uf, tipo_org, sub_tipo
 
 
 # criar a data frame custeio para ser mesclada à df de custo de pessoal a partir da das chaves UF e tipo_org
-custeio <- (custos %>% group_by(uf, tipo_org)  %>% summarise(custeio  =  (sum(custo)/1000)))
+custeio <- (custos %>% group_by(uf, tipo_org)  %>% summarise(custeio  =  (sum(custo))))
 
 
 
@@ -258,11 +293,11 @@ custo_total <-  (custo_total %>% group_by(uf, tipo_org) %>% summarise(custo_tota
 ```
 
 
-Sidebar {.sidebar}
+Filtro {.sidebar}
 =====================================
 
 
-```{r, input$uf}
+```{r, input$ufs}
 
 pickerInput("ufs","ufs", unique(custo_total$uf), selected =unique(custo_total$uf) , options = list(`actions-box` = TRUE),multiple = T)
 
@@ -281,7 +316,7 @@ Row
 ### Custo total
 
 
-```{r}
+```{r value custo total apoio}
 
 # renderValueBox({
 #  valueBox( reais(sum(custo_apoio_reactive()$custo_pessoal)+sum(custo_apoio_reactive()$custeio)),
@@ -304,7 +339,7 @@ renderValueBox({
 ### Custeio
 
 
-```{r}
+```{r value custeio apoio}
 
 renderValueBox({
  valueBox( reais(sum(custo_apoio_reactive()$custeio)),
@@ -317,7 +352,7 @@ renderValueBox({
 
 
 
-```{r}
+```{r value custo pessoal apoio}
 
 renderValueBox({
  valueBox( reais(sum(custo_apoio_reactive()$custo_pessoal)),
@@ -328,7 +363,7 @@ renderValueBox({
 ### Comissão
 
 
-```{r}
+```{r value comissao}
 
 renderValueBox({
  # valueBox( (sum(custo_apoio_reactive()$custeio)+ sum(custo_apoio_reactive()$custo_pessoal))/(sum(custo_cliente_reactive()$custeio)+ sum(custo_cliente_reactive()$custo_pessoal))*100,
@@ -353,7 +388,7 @@ Row
 
 
 
-```{r}
+```{r plot custo total apoio}
 renderPlotly(
   
 
@@ -368,7 +403,7 @@ ggplot(custo_apoio   , aes(x = reorder (uf,-(custeio+custo_pessoal)), y = (custe
 ### custeio das unidades descentralizadas
 
 
-```{r}
+```{r plot custeio apoio}
 renderPlotly( ggplot(custo_apoio   , aes(x = reorder (uf,-custeio), y = (custeio),label = reais(custeio)))+ coord_flip() + 
     geom_col(fill = if_else(custo_total$uf %in% input$ufs, "red", "gray"))+ theme_classic()+
       geom_text()+
@@ -380,11 +415,11 @@ renderPlotly( ggplot(custo_apoio   , aes(x = reorder (uf,-custeio), y = (custeio
 
 
 
-```{r}
+```{r plot custo pessoal apoio}
 renderPlotly( ggplot(custo_apoio   , aes(x = reorder (uf,-custo_pessoal), y = custo_pessoal, label = reais(custo_pessoal)))+ coord_flip() + 
     geom_col(fill = if_else(custo_total$uf %in% input$ufs, "red", "gray"))+ theme_classic()+
       geom_text()    +
-      theme(axis.title.x = element_blank(),
+    theme(axis.title.x = element_blank(),
           axis.title.y = element_blank()))
 ```
 
@@ -393,7 +428,7 @@ renderPlotly( ggplot(custo_apoio   , aes(x = reorder (uf,-custo_pessoal), y = cu
 ### Ranking comissão
 
 
-```{r}
+```{r plot comissao}
 renderPlotly({
    ggplot(custo_total   , aes(x = reorder (uf,-percentual), y = percentual, label =paste0(round(percentual*100,digits = 1), "%")))+ coord_flip() + 
    geom_col(fill = if_else(custo_total$uf %in% input$ufs, "red", "gray"))+ theme_classic()+ 
@@ -409,22 +444,43 @@ renderPlotly({
 
 Custeio
 =============================================
-
-
-
 Row 
 -----------------------------------------------------------------------
-
-
-
-
-
-
-### Principal Natureza da Despesa
-
-
+### Custeio Administrativo (R$)
 
 ```{r}
+
+renderGauge({
+max_value <- custeio_adm %>% filter (uf %in% input$ufs) %>% summarise(custo = sum(custo) )  
+value <- custeio_adm %>% filter (uf %in% input$ufs, tipo_org == "apoio") %>% summarise(custo = sum(custo) ) 
+gauge(sum(value$custo), min = 0, max = sum(max_value$custo), gaugeSectors(
+   danger = c(0, sum(max_value$custo))
+))
+})
+
+
+```
+
+
+
+### Nota Técnica
+
+Custeio administrativo de acordo com nota técnica 545845
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+```{r custeio administrativo, eval=FALSE, include=FALSE}
 
 renderValueBox({ 
   
@@ -434,6 +490,7 @@ renderValueBox({
   color = "red")
   })
 ```
+
 
 
 
@@ -471,7 +528,7 @@ value %>%   mutate(teste= fct_reorder(sub_tipo_custeio, custeio)) %>%
 ```
 
 
-```{r}
+```{r plot custeio administrativo}
 renderPlotly(
   
   
@@ -486,9 +543,9 @@ renderPlotly(
   )
 ```
 
-### composição do custo
+### composição do custeio administrativo
 
-```{r}
+```{r plot composicao custeio}
 renderPlotly( 
   ggplot(custeio_adm%>% filter (uf %in% input$ufs) %>% group_by( tipo_org, sub_tipo_custeio) %>% summarise(custeio = sum(custo))  , aes(x = reorder (sub_tipo_custeio,custeio), y = custeio))+ coord_flip() + 
                 geom_col(aes(fill=tipo_org), position = "fill")+                                  
@@ -512,7 +569,7 @@ Custo de Pessoal
 
 ### pessoal
 
-```{r}
+```{r plot pessoal por ocupacao}
 renderPlotly(
   
   
@@ -528,10 +585,10 @@ renderPlotly(
 
 ```
 
-### tabela cargo
+### tabela ocupação
 
 
-```{r}
+```{r tabela ocupacao}
 
 
 renderDataTable(
@@ -546,12 +603,54 @@ Tabelas
 Column {.tabset}
 -------------------------------------
 ### custeio
-```{r}
-renderDT(tabela(custos))
+```{r dados custeio}
+renderDT(tabela(custos %>% select(uf, tipo_org, ug_emitente, uo, ugr, ug_icc, pi, ndd, centro_custo,custo)))
 ```
 
 
 ### custo de pessoal
-```{r}
+```{r dados custo pessoal}
 renderDT(tabela(pessoal))
 ```
+
+
+Orientações
+=============================================
+
+
+Row
+-------------------------------------
+
+### About dygraphs
+
+This example makes use of the dygraphs R package. The dygraphs
+package provides rich facilities for charting time-series data 
+in R. You can use dygraphs at the R console, within R Markdown
+documents, and within Shiny applications.
+
+
+
+### About dygraphs 444
+
+This example makes usesdgsg of the dygraphs R package. The dygraphs
+package provides rich facilsgfggsities for charting time-series data 
+in R. You can use dygraphs at thgfs,gfsglksgjlskfg
+
+
+e R console, within R Markdown
+documents, and within Shiny applications.
+
+Column
+-------------------------------------
+
+
+### teste
+
+dfsgsg sgsgs sgsgsg sgsgsg sgsgs
+
+
+Row
+-------------------------------------
+
+### ddddd
+zdsagag  aga ggag 
