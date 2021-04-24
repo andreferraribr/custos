@@ -280,12 +280,25 @@ Filtro {.sidebar}
 
 ```{r, input$ufs}
 
-pickerInput("ufs","ufs", unique(custo_total$uf), selected =unique(custo_total$uf) , options = list(`actions-box` = TRUE),multiple = T)
-
-
+pickerInput("ufs","Selecione a UF", unique(custo_total$uf), selected =unique(custo_total$uf) , options = list(`actions-box` = TRUE),multiple = T)
 
 
 ```
+
+## Metodolodia
+
+* Fonte SIAFI  
+
+* Competência 2020   
+
+* [Unidades Descentralizadas](https://www.gov.br/economia/pt-br/acesso-a-informacao/institucional/quem-e-quem/secretaria-executiva/secretaria-de-gestao-corporativa/unidades-descentralizadas)  
+  
+* [Custeio Administrativo](https://www.gov.br/economia/pt-br/centrais-de-conteudo/publicacoes/boletins/boletim-de-custeio-administrativo/arquivos/2019/notametodologicacusteioadministrativo_2018_2019.pdf)  
+  
+##### Excluídos da Análise:
++ Ex-territórios (AP, AC, RO e RR)  
++ Tocantis (gerido por Goiás)  
++ DF (devido às peculiaridades)    
 
 Unidades Descentralizadas
 =============================================
@@ -367,6 +380,7 @@ Row
 
 
 
+
 ```{r plot custo total apoio}
 renderPlotly(
   
@@ -374,8 +388,8 @@ renderPlotly(
     
 ggplot(custo_apoio   , aes(x = reorder (uf,-(custeio+custo_pessoal)), y = (custeio+custo_pessoal), label= reais(custeio+custo_pessoal)))+ coord_flip() + 
     geom_col(fill = if_else(custo_total$uf %in% input$ufs, "red", "gray"))+ theme_classic()+
-    geom_text()
-    + theme(axis.title.x = element_blank(),
+    
+   theme(axis.title.x = element_blank(),
           axis.title.y = element_blank()))
 ```
 
@@ -385,7 +399,7 @@ ggplot(custo_apoio   , aes(x = reorder (uf,-(custeio+custo_pessoal)), y = (custe
 ```{r plot custeio apoio}
 renderPlotly( ggplot(custo_apoio   , aes(x = reorder (uf,-custeio), y = (custeio),label = reais(custeio)))+ coord_flip() + 
     geom_col(fill = if_else(custo_total$uf %in% input$ufs, "red", "gray"))+ theme_classic()+
-      geom_text()+
+      
       theme(axis.title.x = element_blank(),
           axis.title.y = element_blank()))
 ```
@@ -397,7 +411,7 @@ renderPlotly( ggplot(custo_apoio   , aes(x = reorder (uf,-custeio), y = (custeio
 ```{r plot custo pessoal apoio}
 renderPlotly( ggplot(custo_apoio   , aes(x = reorder (uf,-custo_pessoal), y = custo_pessoal, label = reais(custo_pessoal)))+ coord_flip() + 
     geom_col(fill = if_else(custo_total$uf %in% input$ufs, "red", "gray"))+ theme_classic()+
-      geom_text()    +
+          
     theme(axis.title.x = element_blank(),
           axis.title.y = element_blank()))
 ```
@@ -411,7 +425,7 @@ renderPlotly( ggplot(custo_apoio   , aes(x = reorder (uf,-custo_pessoal), y = cu
 renderPlotly({
    ggplot(custo_total   , aes(x = reorder (uf,-percentual), y = percentual, label =paste0(round(percentual*100,digits = 1), "%")))+ coord_flip() + 
    geom_col(fill = if_else(custo_total$uf %in% input$ufs, "red", "gray"))+ theme_classic()+ 
-    geom_text()+                                  
+                                     
     # Change y-axis to percent
   scale_y_continuous(labels = scales::percent)  +
     theme(axis.title.x = element_blank(),
@@ -441,13 +455,15 @@ gauge(sum(value$custo), min = 0, max = sum(max_value$custo),gaugeSectors(colors 
 
 
 
-### Nota Técnica
+### Nota Técnica 1
 
 Custeio administrativo de acordo com nota técnica 545845
 
 
 
+### Nota Técnica 2
 
+Custeio administrativo de acordo com nota técnica 545845
 
 
 
@@ -569,7 +585,7 @@ Column {.tabset}
 -------------------------------------
 ### custeio
 ```{r dados custeio}
-renderDT(tabela(custos %>% select(uf, tipo_org, ug_emitente, uo, ugr, ug_icc, pi, ndd, centro_custo,custo)))
+renderDT(tabela(custos %>% select(uf, tipo_org, uo, ugr, ug_icc, pi, sub_tipo_custeio, ndd, centro_custo,custo)))
 ```
 
 
