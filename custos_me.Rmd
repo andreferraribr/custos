@@ -41,6 +41,7 @@ library(googledrive)
 library(gargle)
 library(writexl)
 library(forcats)
+library(scales)
 ```
 
 
@@ -84,7 +85,7 @@ tabela = function (df,coluna = NULL) {
                       text = "Download" ) ),
                   lengthMenu = list( c(-1, 5, 10,20),
                                      c( "tudo",5, 10, 20)),
-                  pageLength = 20 )
+                  pageLength = 10 )
       )%>%
   formatRound(
   # formatar apenas as colunas numericas.
@@ -92,10 +93,10 @@ tabela = function (df,coluna = NULL) {
     # ((ncol(df %>% select_if(is.character))+1):(ncol(df )+1)),
     # http://datamining.togaware.com/survivor/Remove_Non_Numeric.html
     (c(colnames(df[,sapply(df, is.numeric)]), coluna)),
-  digits = 2,
+  digits = 0,
   interval = 3,
   mark = ",",
-  dec.mark = getOption("OutDec")
+  dec.mark = ""
 )
 }
 # mesma lógica da função "tabela", mas com o objetivo de apresentar os números no formato R$
@@ -116,7 +117,7 @@ tabela_reais = function (df,coluna = NULL) {
                       text = "Download" ) ),
                   lengthMenu = list( c(-1, 5, 10,20),
                                      c( "tudo",5, 10, 20)),
-                  pageLength = 20 )
+                  pageLength = 10 )
       )%>%
   formatRound(
   # formatar apenas as colunas numericas.
@@ -124,10 +125,10 @@ tabela_reais = function (df,coluna = NULL) {
     # ((ncol(df %>% select_if(is.character))+1):(ncol(df )+1)),
     # http://datamining.togaware.com/survivor/Remove_Non_Numeric.html
     (c(colnames(df[,sapply(df, is.numeric)]), coluna)),
-  digits = 2,
+  digits = 0,
   interval = 3,
   mark = ".",
-  dec.mark = ","
+  dec.mark = ""
 ) 
 }
 ```
@@ -138,30 +139,33 @@ tabela_reais = function (df,coluna = NULL) {
 ```{r função "reais" para embelezar numeros}
 # embelezar o número do value box
 reais <- function(numero){
-  paste0(round(numero/1000000,digits = 1))
+  paste0("R$ ",round(numero/1000000,digits = 1), " Mi")
 }
 ```
 
 
 
 ```{r custo de pessoal}
-
+ 
 # importar dados gerados no Tesouro Gerencial
 pessoal <- read_excel("r_pessoal_ME_cargo.xlsx")
 
 # criar variável ocupação para agrupar ocupantes de cargo, estagiários e cedidos 
 pessoal<- pessoal %>% mutate(ocupacao = if_else(Cargo == "S/CARGO", `Situação Funcional`, Cargo))
 
-# importar relaçao das unidades descentralizadas (apoio)
+# importar relaçao das UDs (uds)
 uorgs_descentralizadas <- read_excel("uorgs_descentralizadas.xlsx")
 
 # write_xlsx(uorgs_descentralizadas, "uorgs_descentralizadas.xlsx")
 
-# difenrenciar as unidades descentralizadas (apoio) dos clientes
-pessoal <- pessoal %>%  mutate (tipo_org = if_else(`UORG Código` %in% uorgs_descentralizadas$`UORG Código`, "apoio", "cliente"))
+# difenrenciar as unidades descentralizadas (UDs) dos clientes
+pessoal <- pessoal %>%  mutate (tipo_org = if_else(`UORG Código` %in% uorgs_descentralizadas$`UORG Código`, "UDs", "cliente"))
 
 # obter a sigla da UF
 pessoal <- pessoal %>%  mutate (uf = str_sub(pessoal$UPAG, start = -2L, end=-1L))
+
+
+pessoal <- pessoal %>% mutate(forca_trabalho = round((`Força de Trabalho`)/12),3)
 
 
 
@@ -222,7 +226,7 @@ custos <- custos %>%  mutate(uf =
 ```{r custeio reactive}
 
 # criar atrituto tipo_org para diferenciar as unidades descentralizadas das unidades clientes. Utilizar a informação da UGr e o Código do PI para fazer a diferenciação
-custos <- custos %>% mutate(tipo_org =ifelse( ugr_id %in% ugr_descentralizadas$ugr_id & endsWith (pi_id, "UNIDES")& pi_id %!in% c( "S6403UNIDES","COVIDUNIDES" ), "apoio","cliente"))
+custos <- custos %>% mutate(tipo_org =ifelse( ugr_id %in% ugr_descentralizadas$ugr_id & endsWith (pi_id, "UNIDES")& pi_id %!in% c( "S6403UNIDES","COVIDUNIDES" ), "UDs","cliente"))
 
 nomenclatura <- nomenclatura %>% filter(ndd_id %in% unique(custos$ndd_id)) %>% group_by(ndd_id, sub_tipo_custeio) %>% summarise(count = (ndd_id))
 # 
@@ -235,8 +239,14 @@ custos <- custos %>% filter (sub_tipo_custeio != is.na(sub_tipo_custeio))
 
 custeio_adm<- custos %>% filter (sub_tipo_custeio != is.na(sub_tipo_custeio))
 
-custeio_adm_reactive <- reactive(custeio_adm %>% group_by(uf, tipo_org, sub_tipo_custeio) %>% summarise(custo = sum(custo)) %>% pivot_wider( names_from = tipo_org, values_from = custo)  %>% mutate_all(replace_na, 0))
-
+custeio_adm_reactive <- reactive({
+  
+  validate(
+      need(input$ufs != "", "Selecine a UF")
+    )
+  
+  custos %>% filter (sub_tipo_custeio != is.na(sub_tipo_custeio))
+  })
  # pis <- (custos %>% filter(ugr_id %in% ugr_descentralizadas$ugr_id ,endsWith (pi_id, "UNIDES"), pi_id %!in% c( "S6403UNIDES","COVIDUNIDES" )) %>% group_by(pi,pi_id, ndd, ndd_id) %>% summarise(custo = sum(custo)))
  
  # colnames(pis) <- c("pi_chave", "pi_chave_id", "ndd","ndd_id" ,"custos")
@@ -249,16 +259,16 @@ custeio_adm_reactive <- reactive(custeio_adm %>% group_by(uf, tipo_org, sub_tipo
 custeio <- (custos %>% group_by(uf, tipo_org)  %>% summarise(custeio  =  (sum(custo))))
 
 # criar df de custo de pessoal para ser mesclada com a de custeio
-custo_pessoal <- (pessoal %>% group_by(uf,  tipo_org) %>% summarise(custo_pessoal  =  (sum(`Custo Pessoal - Ativo`))))
+custo_pessoal <- (pessoal %>% group_by(uf,  tipo_org) %>% summarise(custo_pessoal  =  (sum(`Custo Pessoal - Ativo`)), forca_trabalho = sum(`Força de Trabalho`)))
 
-# mesclar os dados de custeio e custo de pessoal para criar df com os custos das unidades descentralizadas (apoio)
-custo_apoio <- full_join(custeio %>% filter(tipo_org == "apoio"), custo_pessoal %>% filter(tipo_org == "apoio"), by = c("uf" = "uf",  "tipo_org" = "tipo_org"))
+# mesclar os dados de custeio e custo de pessoal para criar df com os custos das unidades descentralizadas (uds)
+custo_uds <- full_join(custeio %>% filter(tipo_org == "UDs"), custo_pessoal %>% filter(tipo_org == "UDs"), by = c("uf" = "uf",  "tipo_org" = "tipo_org"))
 
 # mesclar os dados de custeio e custo de pessoal para criar df com os custos dos clientes
 custo_cliente <- full_join(custeio %>% filter(tipo_org == "cliente"), custo_pessoal %>% filter(tipo_org == "cliente"), by = c("uf" = "uf",  "tipo_org" = "tipo_org"))
 
-# criar a função reactive para os custos das unidades de apoio
-custo_apoio_reactive <- reactive(custo_apoio %>% filter(uf %in% input$ufs))
+# criar a função reactive para os custos das unidades de UDs
+custo_uds_reactive <- reactive(custo_uds %>% filter(uf %in% input$ufs))
 
 # criar a função reactive para os custos dos clientes
 custo_cliente_reactive <- reactive(custo_cliente %>% filter(uf %in% input$ufs))
@@ -266,7 +276,7 @@ custo_cliente_reactive <- reactive(custo_cliente %>% filter(uf %in% input$ufs))
 
 
 custo_total <- full_join(custeio, custo_pessoal, by = c("uf" = "uf",  "tipo_org" = "tipo_org"))
-custo_total <-  (custo_total %>% group_by(uf, tipo_org) %>% summarise(custo_total  =  (sum(custo_pessoal+ custeio)))%>% pivot_wider( names_from = tipo_org, values_from = custo_total)  %>% mutate(percentual = apoio/cliente )) 
+custo_total <-  (custo_total %>% group_by(uf, tipo_org) %>% summarise(custo_total  =  (sum(custo_pessoal+ custeio)))%>% pivot_wider( names_from = tipo_org, values_from = custo_total)  %>% mutate(percentual = UDs/cliente )) 
 
 
  
@@ -291,7 +301,7 @@ pickerInput("ufs","Selecione a UF", unique(custo_total$uf), selected =unique(cus
 
 * Competência 2020   
 
-* [Unidades Descentralizadas](https://www.gov.br/economia/pt-br/acesso-a-informacao/institucional/quem-e-quem/secretaria-executiva/secretaria-de-gestao-corporativa/unidades-descentralizadas)  
+* [Unidades Descentralizadas (UDs)](https://www.gov.br/economia/pt-br/acesso-a-informacao/institucional/quem-e-quem/secretaria-executiva/secretaria-de-gestao-corporativa/unidades-descentralizadas)  
   
 * [Custeio Administrativo](https://www.gov.br/economia/pt-br/centrais-de-conteudo/publicacoes/boletins/boletim-de-custeio-administrativo/arquivos/2019/notametodologicacusteioadministrativo_2018_2019.pdf)  
   
@@ -300,27 +310,27 @@ pickerInput("ufs","Selecione a UF", unique(custo_total$uf), selected =unique(cus
 + Tocantis (gerido por Goiás)  
 + DF (devido às peculiaridades)    
 
-Unidades Descentralizadas
+Unidades Descentralizadas (UDs)
 =============================================
 
 
 Row 
 -----------------------------------------------------------------------
 
-### Custo total
+### Custo total (UDs)
 
 
-```{r value custo total apoio}
+```{r value custo total UDs}
 
 # renderValueBox({
-#  valueBox( reais(sum(custo_apoio_reactive()$custo_pessoal)+sum(custo_apoio_reactive()$custeio)),
+#  valueBox( reais(sum(custo_uds_reactive()$custo_pessoal)+sum(custo_uds_reactive()$custeio)),
 #   color = "red")
 #   })
 
 renderValueBox({
   
   
- valueBox( reais(sum(custo_apoio_reactive()$custo_pessoal)+sum(custo_apoio_reactive()$custeio)),
+ valueBox( reais(sum(custo_uds_reactive()$custo_pessoal)+sum(custo_uds_reactive()$custeio)),
   color = "red")
   })
 
@@ -330,26 +340,26 @@ renderValueBox({
 
 
 
-### Custeio
+### Custeio Administrativo (UDs)
 
 
-```{r value custeio apoio}
+```{r value custeio UDs}
 
 renderValueBox({
- valueBox( reais(sum(custo_apoio_reactive()$custeio)),
+ valueBox( reais(sum(custo_uds_reactive()$custeio)),
   color = "red")
   })
 ```
 
 
-### Custo com Pessoal
+### Custo com Pessoal (UDs)
 
 
 
-```{r value custo pessoal apoio}
+```{r value custo pessoal UDs}
 
 renderValueBox({
- valueBox( reais(sum(custo_apoio_reactive()$custo_pessoal)),
+ valueBox( reais(sum(custo_uds_reactive()$custo_pessoal)),
   color = "red")
   })
 ```
@@ -361,7 +371,7 @@ renderValueBox({
 
 renderValueBox({
 
-  value <- sum(custo_apoio_reactive()$custo_pessoal)+sum(custo_apoio_reactive()$custeio)
+  value <- sum(custo_uds_reactive()$custo_pessoal)+sum(custo_uds_reactive()$custeio)
   
   v2 <- sum(custo_cliente_reactive()$custo_pessoal)+sum(custo_cliente_reactive()$custeio)
   
@@ -376,43 +386,46 @@ Row
 -----------------------------------------------------------------------
 
 
-### custo total das unidades descentralizadas
+### Ranking custo total (UDs)
 
 
 
 
-```{r plot custo total apoio}
+```{r plot custo total UDs}
 renderPlotly(
   
 
     
-ggplot(custo_apoio   , aes(x = reorder (uf,-(custeio+custo_pessoal)), y = (custeio+custo_pessoal), label= reais(custeio+custo_pessoal)))+ coord_flip() + 
+ggplot(custo_uds   , aes(x = reorder (uf,-(custeio+custo_pessoal)), y = (custeio+custo_pessoal), label= reais(custeio+custo_pessoal)))+ coord_flip() + 
     geom_col(fill = if_else(custo_total$uf %in% input$ufs, "red", "gray"))+ theme_classic()+
     
-   theme(axis.title.x = element_blank(),
+   theme(axis.text.x = element_blank(),
+          axis.title.x = element_blank(),
           axis.title.y = element_blank()))
 ```
 
-### custeio das unidades descentralizadas
+### Ranking custeio administrativo (UDs)
 
 
-```{r plot custeio apoio}
-renderPlotly( ggplot(custo_apoio   , aes(x = reorder (uf,-custeio), y = (custeio),label = reais(custeio)))+ coord_flip() + 
+```{r plot custeio UDs}
+renderPlotly( ggplot(custo_uds   , aes(x = reorder (uf,-custeio), y = (custeio),label = reais(custeio)))+ coord_flip() + 
     geom_col(fill = if_else(custo_total$uf %in% input$ufs, "red", "gray"))+ theme_classic()+
       
-      theme(axis.title.x = element_blank(),
+      theme(axis.text.x = element_blank(),
+            axis.title.x = element_blank(),
           axis.title.y = element_blank()))
 ```
 
-### custo com pessoal das unidades descentralizadas
+### Ranking custo com pessoal (UDs)
 
 
 
-```{r plot custo pessoal apoio}
-renderPlotly( ggplot(custo_apoio   , aes(x = reorder (uf,-custo_pessoal), y = custo_pessoal, label = reais(custo_pessoal)))+ coord_flip() + 
+```{r plot custo pessoal uds}
+renderPlotly( ggplot(custo_uds   , aes(x = reorder (uf,-custo_pessoal), y = custo_pessoal, label = reais(custo_pessoal)))+ coord_flip() + 
     geom_col(fill = if_else(custo_total$uf %in% input$ufs, "red", "gray"))+ theme_classic()+
-          
-    theme(axis.title.x = element_blank(),
+         
+    theme(axis.text.x = element_blank(),
+          axis.title.x = element_blank(),
           axis.title.y = element_blank()))
 ```
 
@@ -428,7 +441,8 @@ renderPlotly({
                                      
     # Change y-axis to percent
   scale_y_continuous(labels = scales::percent)  +
-    theme(axis.title.x = element_blank(),
+    theme(axis.text.x = element_blank(),
+          axis.title.x = element_blank(),
           axis.title.y = element_blank())
    }) 
 ```
@@ -445,7 +459,7 @@ Row
 
 renderGauge({
 max_value <- custeio_adm %>% filter (uf %in% input$ufs) %>% summarise(custo = sum(custo) )  
-value <- custeio_adm %>% filter (uf %in% input$ufs, tipo_org == "apoio") %>% summarise(custo = sum(custo) ) 
+value <- custeio_adm %>% filter (uf %in% input$ufs, tipo_org == "UDs") %>% summarise(custo = sum(custo) ) 
 gauge(sum(value$custo), min = 0, max = sum(max_value$custo),gaugeSectors(colors = "#fa0000"   )
 )
 })
@@ -457,7 +471,7 @@ gauge(sum(value$custo), min = 0, max = sum(max_value$custo),gaugeSectors(colors 
 
 ### Nota Técnica 1
 
-Custeio administrativo de acordo com nota técnica 545845
+problema rateio. covid. custos fixos.
 
 
 
@@ -475,7 +489,7 @@ Row
 
 
 
-### custeio administrativo total (cliente + apoio)
+### custeio administrativo total (cliente + UDs)
 
 
 
@@ -484,10 +498,12 @@ renderPlotly(
   
   
   
-  ggplot(custeio_adm%>% filter (uf %in% input$ufs) %>% group_by(sub_tipo_custeio, tipo_org) %>% summarise(custeio = sum(custo))  , aes(x = reorder (sub_tipo_custeio,custeio), y = (custeio)))+ coord_flip() + 
-                geom_col(aes(fill=tipo_org))+
+  ggplot(custeio_adm_reactive()%>% filter (uf %in% input$ufs) %>% group_by(sub_tipo_custeio, tipo_org) %>% summarise(custeio = sum(custo))  , aes(x = reorder (sub_tipo_custeio,custeio), y = (custeio), label = reais(custeio)))+ coord_flip() + 
+                geom_col(aes(fill = tipo_org))+
     theme_classic()
-    + theme(axis.title.x = element_blank(),
+    + theme(
+          axis.text.x = element_blank(),
+          axis.title.x = element_blank(),
           axis.title.y = element_blank(), 
           legend.title = element_blank())
   
@@ -498,7 +514,7 @@ renderPlotly(
 
 ```{r plot composicao custeio}
 renderPlotly( 
-  ggplot(custeio_adm%>% filter (uf %in% input$ufs) %>% group_by( tipo_org, sub_tipo_custeio) %>% summarise(custeio = sum(custo))  , aes(x = reorder (sub_tipo_custeio,custeio), y = custeio))+ coord_flip() + 
+  ggplot(custeio_adm_reactive()%>% filter (uf %in% input$ufs) %>% group_by( tipo_org, sub_tipo_custeio) %>% summarise(custeio = sum(custo))  , aes(x = reorder (sub_tipo_custeio,custeio), y = custeio, label = reais(custeio)))+ coord_flip() + 
                 geom_col(aes(fill=tipo_org), position = "fill")+                                  
     # Change y-axis to percent
   scale_y_continuous(labels = scales::percent)+
@@ -522,13 +538,13 @@ Custo de Pessoal
 
 Row 
 -----------------------------------------------------------------------
-### Custeio Administrativo (R$)
+### Custo de Pessoal (R$)
 
 ```{r}
 
 renderGauge({
 max_value <- custo_pessoal %>% filter (uf %in% input$ufs) %>% summarise(custo_pessoal = sum(custo_pessoal) )  
-value <- custo_pessoal %>% filter (uf %in% input$ufs, tipo_org == "apoio") %>% summarise(custo_pessoal = sum(custo_pessoal) ) 
+value <- custo_pessoal %>% filter (uf %in% input$ufs, tipo_org == "UDs") %>% summarise(custo_pessoal = sum(custo_pessoal) ) 
 gauge(sum(value$custo_pessoal), min = 0, max = sum(max_value$custo_pessoal), gaugeSectors(colors = "#fa0000"   )
 )
 })
@@ -536,11 +552,25 @@ gauge(sum(value$custo_pessoal), min = 0, max = sum(max_value$custo_pessoal), gau
 
 ```
 
+### Forca de trabalho
+
+```{r}
+
+renderGauge({
+max_value <- pessoal %>% filter (uf %in% input$ufs) %>% summarise(forca_trabalho = sum(forca_trabalho) )  
+value <- pessoal %>% filter (uf %in% input$ufs, tipo_org == "UDs") %>% summarise(forca_trabalho = sum(forca_trabalho) ) 
+gauge(sum(value$forca_trabalho), min = 0, max = sum(max_value$forca_trabalho), gaugeSectors(colors = "#fa0000"   )
+)
+})
 
 
-### Nota Técnica 2
+```
 
-Custeio administrativo de acordo com nota técnica 545845
+
+### Observação
+
+Força de trabalho é igual ao valor arrendodado da quantidade de meses trabalhada dividido por 12.
+Por exemplo: dois serviodres trabalharam durrante 12 meses em 2020 e um terceiro servidor trabalho por 9 meses. O total de meses trabalhado foi de Custeio administrativo de acordo com nota técnica 545845. rigidez. cedidos....
 
 
 
@@ -555,12 +585,10 @@ renderPlotly(
   
   
   
-  ggplot(pessoal%>% filter (uf %in% input$ufs, tipo_org == "apoio",  `Grupo Situação Vínculo` == "ATIVO") %>% group_by( ocupacao) %>% summarise(custo_pessoal = sum(`Custo Pessoal - Ativo`), forca_trabalho = sum(`Força de Trabalho`))  , aes(x = custo_pessoal, y = forca_trabalho)) + 
+  ggplot(pessoal%>% filter (uf %in% input$ufs, tipo_org == "UDs",  `Grupo Situação Vínculo` == "ATIVO") %>% group_by( ocupacao) %>% summarise(custo_pessoal = sum(`Custo Pessoal - Ativo`), forca_trabalho = sum(forca_trabalho))  , aes(x = custo_pessoal, y = forca_trabalho, label = reais(custo_pessoal))) + 
                 geom_point(aes(colour = factor(ocupacao)))+
   theme_classic()
-    + theme(axis.title.x = element_blank(),
-          axis.title.y = element_blank(),
-          legend.position = "none")
+    + theme(legend.position = "none")
   
   )
 
@@ -573,25 +601,9 @@ renderPlotly(
 
 
 renderDataTable(
-tabela(pessoal %>%  filter (uf %in% input$ufs, tipo_org == "apoio", `Grupo Situação Vínculo` == "ATIVO") %>% group_by( ocupacao) %>% summarise(custo_pessoal = sum(`Custo Pessoal - Ativo`), forca_trabalho = sum(`Força de Trabalho`)) )
+tabela(pessoal %>%  filter (uf %in% input$ufs, tipo_org == "UDs", `Grupo Situação Vínculo` == "ATIVO") %>% group_by( ocupacao) %>% summarise(custo_pessoal = sum(`Custo Pessoal - Ativo`), forca_trabalho =  as.integer(  sum(forca_trabalho))) )
 
 )
-```
-
-Tabelas
-=============================================
-
-Column {.tabset}
--------------------------------------
-### custeio
-```{r dados custeio}
-renderDT(tabela(custos %>% select(uf, tipo_org, uo, ugr, ug_icc, pi, sub_tipo_custeio, ndd, centro_custo,custo)))
-```
-
-
-### custo de pessoal
-```{r dados custo pessoal}
-renderDT(tabela(pessoal))
 ```
 
 
