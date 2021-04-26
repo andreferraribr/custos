@@ -22,6 +22,9 @@ options(digits=2)
 # options (LC_NUMERIC="pt_BR.UTF-8")
 ```
 
+```{r}
+
+```
 
 
 
@@ -37,10 +40,6 @@ library(shinyWidgets)
 library(lubridate)
 library(tidyverse)
 library(janitor)
-library(googledrive)
-library(gargle)
-library(writexl)
-library(forcats)
 library(scales)
 ```
 
@@ -100,37 +99,37 @@ tabela = function (df,coluna = NULL) {
 )
 }
 # mesma lógica da função "tabela", mas com o objetivo de apresentar os números no formato R$
-tabela_reais = function (df,coluna = NULL) {
-      datatable((df)%>%
-  # "row" para o total aparecer na linha, ou seja, totalizar os valores de uma coluna
-  adorn_totals("row") ,
-      filter = 'top', 
-      rownames = FALSE,
-      extensions = 'Buttons',
-      options = list( 
-                  # order = list (df[(length(df))], 'desc'),
-                  dom = "Blfrtip",
-                  buttons = 
-                    list("copy", list(
-                      extend = "collection",
-                      buttons = c("csv", "excel", "pdf"),
-                      text = "Download" ) ),
-                  lengthMenu = list( c(-1, 5, 10,20),
-                                     c( "tudo",5, 10, 20)),
-                  pageLength = 10 )
-      )%>%
-  formatRound(
-  # formatar apenas as colunas numericas.
-  # sapply para identificar as colunas numericas e combinar com o parametro COLUNA
-    # ((ncol(df %>% select_if(is.character))+1):(ncol(df )+1)),
-    # http://datamining.togaware.com/survivor/Remove_Non_Numeric.html
-    (c(colnames(df[,sapply(df, is.numeric)]), coluna)),
-  digits = 0,
-  interval = 3,
-  mark = ".",
-  dec.mark = ""
-) 
-}
+# tabela_reais = function (df,coluna = NULL) {
+#       datatable((df)%>%
+#   # "row" para o total aparecer na linha, ou seja, totalizar os valores de uma coluna
+#   adorn_totals("row") ,
+#       filter = 'top', 
+#       rownames = FALSE,
+#       extensions = 'Buttons',
+#       options = list( 
+#                   # order = list (df[(length(df))], 'desc'),
+#                   dom = "Blfrtip",
+#                   buttons = 
+#                     list("copy", list(
+#                       extend = "collection",
+#                       buttons = c("csv", "excel", "pdf"),
+#                       text = "Download" ) ),
+#                   lengthMenu = list( c(-1, 5, 10,20),
+#                                      c( "tudo",5, 10, 20)),
+#                   pageLength = 10 )
+#       )%>%
+#   formatRound(
+#   # formatar apenas as colunas numericas.
+#   # sapply para identificar as colunas numericas e combinar com o parametro COLUNA
+#     # ((ncol(df %>% select_if(is.character))+1):(ncol(df )+1)),
+#     # http://datamining.togaware.com/survivor/Remove_Non_Numeric.html
+#     (c(colnames(df[,sapply(df, is.numeric)]), coluna)),
+#   digits = 0,
+#   interval = 3,
+#   mark = ".",
+#   dec.mark = ""
+# ) 
+# }
 ```
 
 
@@ -165,10 +164,16 @@ pessoal <- pessoal %>%  mutate (tipo_org = if_else(`UORG Código` %in% uorgs_des
 pessoal <- pessoal %>%  mutate (uf = str_sub(pessoal$UPAG, start = -2L, end=-1L))
 
 
-pessoal <- pessoal %>% mutate(forca_trabalho = round((`Força de Trabalho`)/12),3)
+pessoal <- pessoal %>% mutate(forca_trabalho = round((`Força de Trabalho`)/12,2))
 
 
-
+pessoal_reactive <- reactive({
+  
+ validate(
+      need(input$ufs != "", "Selecine a UF")
+    )  
+  
+pessoal%>% filter (uf %in% input$ufs, tipo_org == "UDs",  `Grupo Situação Vínculo` == "ATIVO") %>% group_by( ocupacao) %>% summarise(custo_pessoal = sum(`Custo Pessoal - Ativo`), forca_trabalho = sum(forca_trabalho))})
 
 
 ```
@@ -305,7 +310,7 @@ pickerInput("ufs","Selecione a UF", unique(custo_total$uf), selected =unique(cus
   
 * [Custeio Administrativo](https://www.gov.br/economia/pt-br/centrais-de-conteudo/publicacoes/boletins/boletim-de-custeio-administrativo/arquivos/2019/notametodologicacusteioadministrativo_2018_2019.pdf)  
   
-##### Excluídos da Análise:
+##### Excluídos da análise:
 + Ex-territórios (AP, AC, RO e RR)  
 + Tocantis (gerido por Goiás)  
 + DF (devido às peculiaridades)    
@@ -340,7 +345,7 @@ renderValueBox({
 
 
 
-### Custeio Administrativo (UDs)
+### Custeio administrativo (UDs)
 
 
 ```{r value custeio UDs}
@@ -352,7 +357,7 @@ renderValueBox({
 ```
 
 
-### Custo com Pessoal (UDs)
+### Custo com pessoal (UDs)
 
 
 
@@ -453,7 +458,7 @@ Custeio
 =============================================
 Row 
 -----------------------------------------------------------------------
-### Custeio Administrativo (R$)
+### Custeio administrativo (R$)
 
 ```{r}
 
@@ -489,7 +494,7 @@ Row
 
 
 
-### custeio administrativo total (cliente + UDs)
+### Ranking custeio administrativo (cliente + UDs)
 
 
 
@@ -510,7 +515,7 @@ renderPlotly(
   )
 ```
 
-### composição do custeio administrativo
+### Composição do custeio administrativo
 
 ```{r plot composicao custeio}
 renderPlotly( 
@@ -538,28 +543,28 @@ Custo de Pessoal
 
 Row 
 -----------------------------------------------------------------------
-### Custo de Pessoal (R$)
+### Custo de pessoal (R$)
 
 ```{r}
 
 renderGauge({
 max_value <- custo_pessoal %>% filter (uf %in% input$ufs) %>% summarise(custo_pessoal = sum(custo_pessoal) )  
 value <- custo_pessoal %>% filter (uf %in% input$ufs, tipo_org == "UDs") %>% summarise(custo_pessoal = sum(custo_pessoal) ) 
-gauge(sum(value$custo_pessoal), min = 0, max = sum(max_value$custo_pessoal), gaugeSectors(colors = "#fa0000"   )
+gauge(sum(value$custo_pessoal), min = 0, max = sum(max_value$custo_pessoal), gaugeSectors(colors = "red"   )
 )
 })
 
 
 ```
 
-### Forca de trabalho
+### Força de trabalho
 
 ```{r}
 
 renderGauge({
-max_value <- pessoal %>% filter (uf %in% input$ufs) %>% summarise(forca_trabalho = sum(forca_trabalho) )  
-value <- pessoal %>% filter (uf %in% input$ufs, tipo_org == "UDs") %>% summarise(forca_trabalho = sum(forca_trabalho) ) 
-gauge(sum(value$forca_trabalho), min = 0, max = sum(max_value$forca_trabalho), gaugeSectors(colors = "#fa0000"   )
+max_value <- pessoal %>% filter (uf %in% input$ufs) %>% summarise(forca_trabalho = round(sum(forca_trabalho),0) )  
+value <- pessoal %>% filter (uf %in% input$ufs, tipo_org == "UDs") %>% summarise(forca_trabalho = round(  sum(forca_trabalho),0) ) 
+gauge(sum(value$forca_trabalho), min = 0, max = sum(max_value$forca_trabalho), gaugeSectors(colors = "red"   )
 )
 })
 
@@ -569,8 +574,9 @@ gauge(sum(value$forca_trabalho), min = 0, max = sum(max_value$forca_trabalho), g
 
 ### Observação
 
-Força de trabalho é igual ao valor arrendodado da quantidade de meses trabalhada dividido por 12.
-Por exemplo: dois serviodres trabalharam durrante 12 meses em 2020 e um terceiro servidor trabalho por 9 meses. O total de meses trabalhado foi de Custeio administrativo de acordo com nota técnica 545845. rigidez. cedidos....
+Força de trabalho é igual ao arrendondamento do número de meses trabalhados dividido por 12.  
+Por exemplo: 1 servidor trabalhou por 11 meses = 1 força de trabalho  
+
 
 
 
@@ -578,15 +584,15 @@ Por exemplo: dois serviodres trabalharam durrante 12 meses em 2020 e um terceiro
 Row 
 -----------------------------------------------------------------------
 
-### pessoal
+### Pessoal
 
 ```{r plot pessoal por ocupacao}
 renderPlotly(
   
   
   
-  ggplot(pessoal%>% filter (uf %in% input$ufs, tipo_org == "UDs",  `Grupo Situação Vínculo` == "ATIVO") %>% group_by( ocupacao) %>% summarise(custo_pessoal = sum(`Custo Pessoal - Ativo`), forca_trabalho = sum(forca_trabalho))  , aes(x = custo_pessoal, y = forca_trabalho, label = reais(custo_pessoal))) + 
-                geom_point(aes(colour = factor(ocupacao)))+
+  ggplot(pessoal_reactive()  , aes(x = custo_pessoal, y = forca_trabalho, label = reais(custo_pessoal))) + 
+                geom_point(colour = "red")+
   theme_classic()
     + theme(legend.position = "none")
   
@@ -594,14 +600,14 @@ renderPlotly(
 
 ```
 
-### tabela ocupação
+### Tabela ocupação
 
 
 ```{r tabela ocupacao}
 
 
 renderDataTable(
-tabela(pessoal %>%  filter (uf %in% input$ufs, tipo_org == "UDs", `Grupo Situação Vínculo` == "ATIVO") %>% group_by( ocupacao) %>% summarise(custo_pessoal = sum(`Custo Pessoal - Ativo`), forca_trabalho =  as.integer(  sum(forca_trabalho))) )
+tabela(pessoal %>%  filter (uf %in% input$ufs, tipo_org == "UDs", `Grupo Situação Vínculo` == "ATIVO") %>% group_by( ocupacao) %>% summarise(custo_pessoal = sum(`Custo Pessoal - Ativo`), forca_trabalho = (  sum(forca_trabalho))) )
 
 )
 ```
@@ -633,13 +639,17 @@ in R. You can use dygraphs at thgfs,gfsglksgjlskfg
 e R console, within R Markdown
 documents, and within Shiny applications.
 
-Column
+
+Row
 -------------------------------------
-
-
 ### teste
 
 dfsgsg sgsgs sgsgsg sgsgsg sgsgs
+
+
+
+### teste 2
+
 
 
 Row
@@ -647,3 +657,7 @@ Row
 
 ### ddddd
 zdsagag  aga ggag 
+
+
+### eeee
+cxxcvxcv
