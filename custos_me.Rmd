@@ -322,7 +322,7 @@ Unidades Descentralizadas (UDs)
 Row 
 -----------------------------------------------------------------------
 
-### Custo total (UDs)
+### Custo total
 
 
 ```{r value custo total UDs}
@@ -345,7 +345,7 @@ renderValueBox({
 
 
 
-### Custeio administrativo (UDs)
+### Custeio administrativo
 
 
 ```{r value custeio UDs}
@@ -357,7 +357,7 @@ renderValueBox({
 ```
 
 
-### Custo com pessoal (UDs)
+### Custo com pessoal
 
 
 
@@ -391,7 +391,7 @@ Row
 -----------------------------------------------------------------------
 
 
-### Ranking custo total (UDs)
+### Ranking custo total em R$ milhões
 
 
 
@@ -401,35 +401,40 @@ renderPlotly(
   
 
     
-ggplot(custo_uds   , aes(x = reorder (uf,-(custeio+custo_pessoal)), y = (custeio+custo_pessoal), label= reais(custeio+custo_pessoal)))+ coord_flip() + 
+ggplot(custo_uds   , aes(x = reorder (uf,-(custeio+custo_pessoal)), y = round((custeio+custo_pessoal)/1000000,1)))+ coord_flip() + 
     geom_col(fill = if_else(custo_total$uf %in% input$ufs, "red", "gray"))+ theme_classic()+
     
-   theme(axis.text.x = element_blank(),
+   theme(
+     # axis.text.x = element_blank(),
           axis.title.x = element_blank(),
           axis.title.y = element_blank()))
 ```
 
-### Ranking custeio administrativo (UDs)
+### Ranking custeio administrativo em R$ milhões
 
 
 ```{r plot custeio UDs}
-renderPlotly( ggplot(custo_uds   , aes(x = reorder (uf,-custeio), y = (custeio),label = reais(custeio)))+ coord_flip() + 
+renderPlotly( ggplot(custo_uds   , aes(x = reorder (uf,-custeio), y = round(custeio/1000000,1)))+ coord_flip() + 
     geom_col(fill = if_else(custo_total$uf %in% input$ufs, "red", "gray"))+ theme_classic()+
+      ylim(0, max(custo_uds$custeio+custo_uds$custo_pessoal)/1000000)+
       
-      theme(axis.text.x = element_blank(),
+      theme(
+        # axis.text.x = element_blank(),
             axis.title.x = element_blank(),
           axis.title.y = element_blank()))
 ```
 
-### Ranking custo com pessoal (UDs)
+### Ranking custo com pessoal em R$ milhões
 
 
 
 ```{r plot custo pessoal uds}
-renderPlotly( ggplot(custo_uds   , aes(x = reorder (uf,-custo_pessoal), y = custo_pessoal, label = reais(custo_pessoal)))+ coord_flip() + 
+renderPlotly( ggplot(custo_uds   , aes(x = reorder (uf,-custo_pessoal), y = round(custo_pessoal/1000000,1)))+ coord_flip() + 
     geom_col(fill = if_else(custo_total$uf %in% input$ufs, "red", "gray"))+ theme_classic()+
+      ylim(0, max(custo_uds$custeio+custo_uds$custo_pessoal)/1000000)+
          
-    theme(axis.text.x = element_blank(),
+    theme(
+          # axis.text.x = element_blank(),
           axis.title.x = element_blank(),
           axis.title.y = element_blank()))
 ```
@@ -446,7 +451,8 @@ renderPlotly({
                                      
     # Change y-axis to percent
   scale_y_continuous(labels = scales::percent)  +
-    theme(axis.text.x = element_blank(),
+    theme(
+        # axis.text.x = element_blank(),
           axis.title.x = element_blank(),
           axis.title.y = element_blank())
    }) 
@@ -454,7 +460,7 @@ renderPlotly({
 
 
 
-Custeio
+Custeio Administrativo
 =============================================
 Row 
 -----------------------------------------------------------------------
@@ -474,15 +480,17 @@ gauge(sum(value$custo), min = 0, max = sum(max_value$custo),gaugeSectors(colors 
 
 
 
-### Nota Técnica 1
+### 1) Custo incorrido x custo pago
+O valor custo incorrido é apurado pelo centro de custo.  
+O valor do custo pago é apurado pela UG responsável.  
+Na situação ideal, o custo incorrido deve ser igual ao custo pago.  
 
-problema rateio. covid. custos fixos.
 
 
+### 2) Custo incorrido x custo pago
 
-### Nota Técnica 2
-
-Custeio administrativo de acordo com nota técnica 545845
+Pode ocorrer diferença entre o custo incorrido e o custo efetivamente pago.  
+Por exemplo, quando um cliente demora para repassar os recursos necessários para quitar a despesa com energia elétrica, a UD pode se ver obrigada a pagar a fatura  de um custo que não incorreu.
 
 
 
@@ -494,7 +502,7 @@ Row
 
 
 
-### Ranking custeio administrativo (cliente + UDs)
+### Ranking custeio administrativo em R$ milhões
 
 
 
@@ -503,11 +511,11 @@ renderPlotly(
   
   
   
-  ggplot(custeio_adm_reactive()%>% filter (uf %in% input$ufs) %>% group_by(sub_tipo_custeio, tipo_org) %>% summarise(custeio = sum(custo))  , aes(x = reorder (sub_tipo_custeio,custeio), y = (custeio), label = reais(custeio)))+ coord_flip() + 
+  ggplot(custeio_adm_reactive()%>% filter (uf %in% input$ufs) %>% group_by(sub_tipo_custeio, tipo_org) %>% summarise(custeio = sum(custo))  , aes(x = reorder (sub_tipo_custeio,custeio), y = round(custeio/1000000,1)))+ coord_flip() + 
                 geom_col(aes(fill = tipo_org))+
     theme_classic()
     + theme(
-          axis.text.x = element_blank(),
+          # axis.text.x = element_blank(),
           axis.title.x = element_blank(),
           axis.title.y = element_blank(), 
           legend.title = element_blank())
@@ -557,6 +565,8 @@ gauge(sum(value$custo_pessoal), min = 0, max = sum(max_value$custo_pessoal), gau
 
 ```
 
+
+
 ### Força de trabalho
 
 ```{r}
@@ -572,11 +582,17 @@ gauge(sum(value$forca_trabalho), min = 0, max = sum(max_value$forca_trabalho), g
 ```
 
 
-### Observação
+### Fórmula da força de trabalho
 
 Força de trabalho é igual ao arrendondamento do número de meses trabalhados dividido por 12.  
-Por exemplo: 1 servidor trabalhou por 11 meses = 1 força de trabalho  
+Por exemplo: se um servidor trabalhou por 11 meses, a força de trabalho é igual a um.  
 
+
+
+### Observação
+
+
+O custo dos servidores celetistas cedidos (EXERC. 7  ART93 8112) e o custos dos estagiários não é atribuído às Unidades Descentralizadas. O custo é atribuído ao Ministério da Economia.
 
 
 
@@ -591,10 +607,12 @@ renderPlotly(
   
   
   
-  ggplot(pessoal_reactive()  , aes(x = custo_pessoal, y = forca_trabalho, label = reais(custo_pessoal))) + 
+  ggplot(pessoal_reactive()  , aes(x = round(custo_pessoal/1000,1), y = round(forca_trabalho,0), label = reais(custo_pessoal))) + 
                 geom_point(colour = "red")+
   theme_classic()
-    + theme(legend.position = "none")
+    + theme(legend.position = "none")+
+     
+  ylab("Força de Trabalho") + xlab("Custo de Pessoal em R$ milhar")
   
   )
 
@@ -613,51 +631,40 @@ tabela(pessoal %>%  filter (uf %in% input$ufs, tipo_org == "UDs", `Grupo Situaç
 ```
 
 
-Orientações
+Observações
 =============================================
 
 
-Row
--------------------------------------
+### Limitações
 
-### About dygraphs
+* Seleção das uorgs:  
 
-This example makes use of the dygraphs R package. The dygraphs
-package provides rich facilities for charting time-series data 
-in R. You can use dygraphs at the R console, within R Markdown
-documents, and within Shiny applications.
+A segmentação do custo de pessoal entre clientes e UDs foi feita a partir das uorgs. Dependendo da uorg, determinado custo foi alocado para os clientes ou para a UDs.
+
+Categorizei as uorgs de acordo com o nome. Por exemplo, uorgs contendo o termo "SAMF" foram consideradas como UDs. A forma de categorização está sujeita à falha e precisa ser validada pelo órgão central de pessoal do Ministério da Economia.
 
 
+* Rateio de despesas:
 
-### About dygraphs 444
-
-This example makes usesdgsg of the dygraphs R package. The dygraphs
-package provides rich facilsgfggsities for charting time-series data 
-in R. You can use dygraphs at thgfs,gfsglksgjlskfg
+Durante o ano de 2020 houve registro de UDs com dificuldade para receber repasse financeiro dos clientes. A falta de repasse distorce a ánalise ao elevar os percentuais de comissão.
 
 
-e R console, within R Markdown
-documents, and within Shiny applications.
+* Custo de pessoal:
 
-
-Row
--------------------------------------
-### teste
-
-dfsgsg sgsgs sgsgsg sgsgsg sgsgs
+O custo de pessoal e a força de trabalho contempla apenas os servidores vinculados às unidades pagadoras (UPAGs) das UDs. Estão excluídos, por exemplo, os servidores da CGU.
 
 
 
-### teste 2
+* COVID-19:
+
+A pandêmia afetou de maneira distinta as UDs. Durante o ano de 2020, devido ao regime de trabalho remoto, algumas UDs tiveram uma margem maior para reduzir as despesas com limpeza, vigilância, serviço de apoio e energia elétrica.     
+
+### Próximos estudos
+
+* Automatizar a extração dos dados do Siafi e criar um dashboard com atualização diária.  
 
 
-
-Row
--------------------------------------
-
-### ddddd
-zdsagag  aga ggag 
+* Incluir o custo de pessoal dos servidores cedidos, dos demais clientes (ex. CGU)
 
 
-### eeee
-cxxcvxcv
+* Replicar o estudo para a Receita Federal, universidades federais e a Rede Federal de Educação Profissional, Científica e Tecnológica.  
