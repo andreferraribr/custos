@@ -484,6 +484,7 @@ gauge(sum(value$custo), min = 0, max = sum(max_value$custo),gaugeSectors(colors 
 O valor custo incorrido é apurado pelo centro de custo.  
 O valor do custo pago é apurado pela UG responsável.  
 Na situação ideal, o custo incorrido deve ser igual ao custo pago.  
+**O dashboard apresenta o custo pago.**  
 
 
 
@@ -585,7 +586,7 @@ gauge(sum(value$forca_trabalho), min = 0, max = sum(max_value$forca_trabalho), g
 ### Fórmula da força de trabalho
 
 Força de trabalho é igual ao arrendondamento do número de meses trabalhados dividido por 12.  
-Por exemplo: se um servidor trabalhou por 11 meses, a força de trabalho é igual a um.  
+Por exemplo: se um servidor trabalhou por 11 meses, a força de trabalho é igual a 1.  
 
 
 
@@ -637,25 +638,25 @@ Observações
 
 ### Limitações
 
-* Seleção das uorgs:  
+* **Seleção das uorgs:**  
 
-A segmentação do custo de pessoal entre clientes e UDs foi feita a partir das uorgs. Dependendo da uorg, determinado custo foi alocado para os clientes ou para a UDs.
+A segmentação do custo de pessoal entre clientes e UDs foi feita a partir das uorgs. Dependendo da uorg, determinado custo foi alocado para os clientes ou para as UDs.
 
 Categorizei as uorgs de acordo com o nome. Por exemplo, uorgs contendo o termo "SAMF" foram consideradas como UDs. A forma de categorização está sujeita à falha e precisa ser validada pelo órgão central de pessoal do Ministério da Economia.
 
 
-* Rateio de despesas:
+* **Rateio de despesas:**
 
 Durante o ano de 2020 houve registro de UDs com dificuldade para receber repasse financeiro dos clientes. A falta de repasse distorce a ánalise ao elevar os percentuais de comissão.
 
 
-* Custo de pessoal:
+* **Custo de pessoal:**
 
 O custo de pessoal e a força de trabalho contempla apenas os servidores vinculados às unidades pagadoras (UPAGs) das UDs. Estão excluídos, por exemplo, os servidores da CGU.
 
 
 
-* COVID-19:
+* **COVID-19:**
 
 A pandêmia afetou de maneira distinta as UDs. Durante o ano de 2020, devido ao regime de trabalho remoto, algumas UDs tiveram uma margem maior para reduzir as despesas com limpeza, vigilância, serviço de apoio e energia elétrica.     
 
@@ -664,7 +665,9 @@ A pandêmia afetou de maneira distinta as UDs. Durante o ano de 2020, devido ao 
 * Automatizar a extração dos dados do Siafi e criar um dashboard com atualização diária.  
 
 
-* Incluir o custo de pessoal dos servidores cedidos, dos demais clientes (ex. CGU)
+* Incluir o custo de pessoal dos servidores cedidos, dos demais clientes.
 
 
 * Replicar o estudo para a Receita Federal, universidades federais e a Rede Federal de Educação Profissional, Científica e Tecnológica.  
+
+*  Apurar os custos por centro de custos e mapear os critérios de rateio.  
